@@ -1,0 +1,73 @@
+{
+  "name": "trishuli_betrawati_dambreak",
+  "description": "Instantaneous partial breach of a 55 m dam on the Trishuli River near Betrawati (Nuwakot). Reservoir, dam and breach geometry derived from the Copernicus GLO-30 DEM and Sentinel-2 imagery.",
+  "inputs": {
+    "dem": "Nepal_Data/dem.tif",
+    "satellite": "Nepal_Data/lat_28.04869_lon_85.21924_date_2026-03-05_SENTINEL-2/SENTINEL-2_2026-03-05_lat_28.04869_lon_85.21924.tif"
+  },
+  "crs": "EPSG:32645",
+  "dam": {
+    "lon": 85.18414,
+    "lat": 27.97125,
+    "height_m": 55.0,
+    "crest_width_m": 20.0,
+    "upstream_slope_h_per_v": 2.0,
+    "downstream_slope_h_per_v": 2.0,
+    "siting_search_m": 1500.0
+  },
+  "breach": {
+    "method": "froehlich2008",
+    "failure_mode": "overtopping",
+    "side_slope_h_per_v": 1.0,
+    "timing": "instantaneous"
+  },
+  "domain": {
+    "reach_length_km": 30.0,
+    "upstream_buffer_km": 1.0,
+    "margin_above_thalweg_m": 45.0,
+    "max_lateral_distance_m": 1500.0,
+    "terrain_resolution_m": 10.0
+  },
+  "simulation": {
+    "duration_s": 10800.0,
+    "output_interval_s": 30.0,
+    "wet_threshold_m": 0.1,
+    "arrival_threshold_m": 0.5,
+    "stations_km": [
+      0.5,
+      2.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ]
+  },
+  "delft3d": {
+    "cell_size_m": 20.0,
+    "time_step_s": 0.6,
+    "manning_n": 0.045,
+    "horizontal_eddy_viscosity": 1.0,
+    "dry_threshold_m": 0.05,
+    "advection_scheme": "Flood",
+    "mpi_processes": 6
+  },
+  "sph": {
+    "dp_m": 12.0,
+    "coefh": 1.0,
+    "coefsound": 10.0,
+    "cfl": 0.2,
+    "kernel": "wendland",
+    "viscosity_artificial": 0.01,
+    "visco_bound_factor": 1.0,
+    "density_diffusion": "fourtakas",
+    "density_diffusion_value": 0.1,
+    "boundary_layers": 2,
+    "gate_lift_speed_ms": 40.0,
+    "threads": 10,
+    "duration_s": 9000.0,
+    "output_interval_s": 30.0,
+    "max_duration_s": 21600.0
+  },
+  "title": "Trishuli dam break, Betrawati (30 km)"
+}

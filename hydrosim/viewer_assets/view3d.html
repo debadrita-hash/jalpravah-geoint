@@ -1,0 +1,273 @@
+<title>JalPravah __LABEL__ 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="hydro.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="data/scenario.js"></script>
+<script src="data/__MODEL__.js"></script>
+<script src="hydro.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => document.body.classList.add("model-__MODEL__"));</script>
+<style>
+  .stage3d { position: relative; height: min(72vh, 760px); min-height: 380px; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: linear-gradient(#cfe0ec 0%, #eef4f8 60%, #f7f9fa 100%); }
+  .stage3d canvas { display: block; width: 100%; height: 100%; }
+  .stage3d .clock { position: absolute; left: 12px; top: 12px; font: 600 20px var(--font-mono); background: rgba(14, 20, 24, .78); color: #fff; padding: 4px 10px; border-radius: 4px; }
+  .stage3d .msg { position: absolute; inset: 0; display: grid; place-items: center; color: #223; font: 500 15px var(--font-body); background: rgba(255,255,255,.55); }
+  .stage3d .hint { position: absolute; right: 12px; bottom: 10px; font: 11.5px var(--font-body); color: #223; background: rgba(255,255,255,.7); padding: 3px 8px; border-radius: 4px; }
+</style>
+
+<header class="appbar">
+  <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="index.html">Overview</a>
+    <a href="sph.html">SPH</a>
+    <a href="sph3d.html" id="nav-sph3d">SPH 3D</a>
+    <a href="delft3d.html">Delft3D</a>
+    <a href="delft3d3d.html" id="nav-delft3d3d">Delft3D 3D</a>
+    <a href="comparison.html">Comparison</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="pagehead">
+    <div>
+      <span class="badge">__LABEL__ · 3-D view</span>
+      <h1 id="title">The flood in three dimensions</h1>
+      <p class="lede" id="lede"></p>
+    </div>
+    <span class="status" id="status"></span>
+  </div>
+
+  <section class="panel">
+    <div class="map-tools">
+      <div class="seg" role="group" aria-label="What to show" id="modes"></div>
+      <div class="seg" role="group" aria-label="Colour by" id="colours">
+        <button type="button" data-col="depth" aria-pressed="true">Colour: depth</button>
+        <button type="button" data-col="speed" aria-pressed="false">Colour: velocity</button>
+      </div>
+      <div class="seg" role="group" aria-label="Camera">
+        <button type="button" data-cam="dam">Dam</button>
+        <button type="button" data-cam="mid">Mid reach</button>
+        <button type="button" data-cam="all">Whole valley</button>
+      </div>
+      <label class="speed" for="exag">Vertical ×
+        <select id="exag"><option value="1">1</option><option value="1.5" selected>1.5</option><option value="2.5">2.5</option></select></label>
+    </div>
+    <div class="stage3d" id="stage"><div class="msg" id="msg">Loading terrain and model output…</div><span class="clock" id="clock"></span><span class="hint">Drag to orbit · right-drag to pan · scroll to zoom</span></div>
+    <div class="legend" id="legend"></div>
+    <div class="timeline" id="timeline">
+      <button type="button" id="play">Play</button>
+      <input type="range" id="t" min="0" max="0" value="0" aria-label="Simulation time">
+      <label class="speed" for="rate">Playback <select id="rate"><option value="1">1 s = 1 min of flood</option><option value="2" selected>1 s = 2 min</option><option value="4">1 s = 4 min</option><option value="8">1 s = 8 min</option><option value="16">1 s = 16 min</option></select></label>
+    </div>
+    <p class="note" id="note"></p>
+  </section>
+</div>
+
+<script>
+(async function () {
+  const MODEL = "__MODEL__", LABEL = "__LABEL__";
+  document.getElementById("nav-" + MODEL + "3d").classList.add("here");
+  const $ = (id) => document.getElementById(id), fmt = Hydro.fmt;
+  const S = window.HYDRO_DATA.scenario, M = window.HYDRO_DATA[MODEL];
+  if (!M) { $("msg").textContent = `No ${LABEL} results yet.`; return; }
+  const run = M.metrics.run, done = run.simulated_s >= M.planned_s - 1;
+  $("status").className = "status " + (done ? "ok" : "run");
+  $("status").textContent = done ? `Complete · ${fmt(run.simulated_s / 60, 0)} min` : `Running · ${fmt(run.simulated_s / 60, 1)} of ${fmt(M.planned_s / 60, 0)} min so far`;
+  const hasParticles = MODEL === "sph" && M.particles3d;
+  $("lede").textContent = MODEL === "sph"
+    ? "Every dot is one DualSPHysics water particle (12 m, 1,728 m³) moving in 3-D over the Copernicus GLO-30 terrain and Sentinel-2 imagery, exactly as the solver computed it."
+    : `Delft3D’s computed water surface (bed level plus depth on every wet ${S.grid.dx} m cell) over the Copernicus GLO-30 terrain and Sentinel-2 imagery.`;
+  if (!window.THREE) { $("msg").textContent = "The 3-D library could not be loaded (it needs an internet connection)."; return; }
+
+  // ---------------------------------------------------------------- data
+  const gz = async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(url); return new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(); };
+  let T3, heights, parts = null;
+  try {
+    T3 = S.terrain3d; heights = new Float32Array(await gz("data/" + T3.file));
+    if (hasParticles) parts = { xyz: new Uint16Array(await gz("data/" + M.particles3d.file_xyz)), spd: new Uint8Array(await gz("data/" + M.particles3d.file_speed)) };
+  } catch (e) { $("msg").textContent = "Open this page through JalPravah (JalPravah.bat) so the 3-D data files can load."; return; }
+  const cells = await Hydro.i32(S.cells_b64), cellZ = await Hydro.f32(S.cell_z_b64), resv = await Hydro.u8(S.reservoir_b64);
+  const depth = await Hydro.u8(M.depth_b64), speed = await Hydro.u8(M.speed_b64);
+  const n = cells.length, g = S.grid, dstep = S.depth_step, vstep = S.speed_step;
+
+  // ---------------------------------------------------------------- scene
+  const stage = $("stage"), renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  stage.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 5, 400000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.49;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-20000, 30000, 10000); scene.add(sun);
+  let EX = 1.5, zref = T3.zmin;
+  const P = (x, y, z) => [x, (z - zref) * EX, -y];
+
+  // terrain with the hillshade/landcover texture of the analysis extent
+  const tg = new THREE.BufferGeometry(), tv = new Float32Array(T3.nx * T3.ny * 3), tuv = new Float32Array(T3.nx * T3.ny * 2), tidx = [];
+  const W = g.nx * g.dx, Hh = g.ny * g.dx;
+  function fillTerrain() {
+    for (let j = 0; j < T3.ny; j++) for (let i = 0; i < T3.nx; i++) {
+      const k = j * T3.nx + i, x = T3.x0 + i * T3.dx, y = T3.y0 + j * T3.dx, p = P(x, y, heights[k]);
+      tv.set(p, k * 3); tuv[k * 2] = (x - g.x0) / W; tuv[k * 2 + 1] = (y - g.y0) / Hh;
+    }
+    tg.attributes.position && (tg.attributes.position.needsUpdate = true);
+  }
+  fillTerrain();
+  for (let j = 0; j < T3.ny - 1; j++) for (let i = 0; i < T3.nx - 1; i++) { const a = j * T3.nx + i; tidx.push(a, a + 1, a + T3.nx, a + 1, a + T3.nx + 1, a + T3.nx); }
+  tg.setAttribute("position", new THREE.BufferAttribute(tv, 3)); tg.setAttribute("uv", new THREE.BufferAttribute(tuv, 2)); tg.setIndex(tidx); tg.computeVertexNormals();
+  const tex = new THREE.TextureLoader().load("data:image/jpeg;base64," + S.terrain_png);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const terrain = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8 }));  // texture is already hillshaded
+  scene.add(terrain);
+
+  // 10 m terrain patch around the dam so the embankment and breach notch are visible in 3-D
+  let damPatch = null, dph = null;
+  try { dph = new Float32Array(await gz("data/" + S.dam_patch.file)); } catch (e) { dph = null; }
+  function buildDamPatch() {
+    if (!dph) return;
+    const D = S.dam_patch, pv = new Float32Array(D.nx * D.ny * 3), puv = new Float32Array(D.nx * D.ny * 2), pi = [];
+    for (let j = 0; j < D.ny; j++) for (let i = 0; i < D.nx; i++) {
+      const k = j * D.nx + i, x = D.x0 + i * D.dx, y = D.y0 + j * D.dx;
+      pv.set(P(x, y, dph[k]), k * 3); puv[k * 2] = (x - g.x0) / W; puv[k * 2 + 1] = (y - g.y0) / Hh;
+    }
+    for (let j = 0; j < D.ny - 1; j++) for (let i = 0; i < D.nx - 1; i++) { const a = j * D.nx + i; pi.push(a, a + 1, a + D.nx, a + 1, a + D.nx + 1, a + D.nx); }
+    const pg = new THREE.BufferGeometry(); pg.setAttribute("position", new THREE.BufferAttribute(pv, 3)); pg.setAttribute("uv", new THREE.BufferAttribute(puv, 2)); pg.setIndex(pi);
+    if (damPatch) { scene.remove(damPatch); damPatch.geometry.dispose(); }
+    damPatch = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+    scene.add(damPatch);
+  }
+  buildDamPatch();
+  // floating label over the dam crest
+  const lab = document.createElement("canvas"); lab.width = 512; lab.height = 128;
+  const lc = lab.getContext("2d"); lc.fillStyle = "rgba(255,255,255,0.92)"; lc.fillRect(0, 20, 512, 88); lc.strokeStyle = "#8c3321"; lc.lineWidth = 6; lc.strokeRect(3, 23, 506, 82);
+  lc.fillStyle = "#12303a"; lc.font = "600 44px IBM Plex Sans, sans-serif"; lc.textAlign = "center"; lc.fillText(`Dam · ${Math.round(S.dam.height_m)} m`, 256, 80);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(lab), depthTest: false }));
+  sprite.scale.set(560, 140, 1); scene.add(sprite);
+  const placeLabel = () => sprite.position.set(0, (S.dam.crest_m - zref) * EX + 260, 0);
+  placeLabel();
+
+  // water surface on active analysis cells (used by Delft3D, and by SPH in surface mode)
+  const col = new Int32Array(g.nx * g.ny).fill(-1); for (let k = 0; k < n; k++) col[cells[k]] = k;
+  const wv = new Float32Array(n * 3), wc = new Float32Array(n * 3), widx = [];
+  for (let k = 0; k < n; k++) { const c = cells[k], j = Math.floor(c / g.nx), i = c - j * g.nx; wv[k * 3] = g.x0 + (i + 0.5) * g.dx; wv[k * 3 + 2] = -(g.y0 + (j + 0.5) * g.dx); }
+  for (let k = 0; k < n; k++) {
+    const c = cells[k], j = Math.floor(c / g.nx), i = c - j * g.nx;
+    if (i + 1 >= g.nx || j + 1 >= g.ny) continue;
+    const a = k, b = col[c + 1], d = col[c + g.nx], e = col[c + g.nx + 1];
+    if (b >= 0 && d >= 0 && e >= 0) widx.push(a, b, d, e);
+  }
+  const quads = Int32Array.from(widx), wetv = new Uint8Array(n), triBuf = new Uint32Array((quads.length / 4) * 6);
+  const wg = new THREE.BufferGeometry();
+  wg.setAttribute("position", new THREE.BufferAttribute(wv, 3)); wg.setAttribute("color", new THREE.BufferAttribute(wc, 3));
+  wg.setIndex(new THREE.BufferAttribute(triBuf, 1));
+  const water = new THREE.Mesh(wg, new THREE.MeshPhongMaterial({ vertexColors: true, transparent: true, opacity: 0.88, shininess: 60, side: THREE.DoubleSide }));
+  scene.add(water);
+
+  // SPH particles
+  let points = null;
+  if (parts) {
+    const maxN = Math.max(...M.particles3d.counts);
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(maxN * 3), 3));
+    pg.setAttribute("color", new THREE.BufferAttribute(new Float32Array(maxN * 3), 3));
+    points = new THREE.Points(pg, new THREE.PointsMaterial({ size: 13, vertexColors: true, sizeAttenuation: true }));
+    scene.add(points);
+  }
+  const LD = Hydro.ramp(["#6fc2e6", "#2f8fd0", "#1d5aa6", "#1c2f78", "#160f45"]), LS = Hydro.ramp(Hydro.RAMPS.speed);
+  let colour = "depth", mode = parts ? "particles" : "surface", frame = 0;
+
+  // frames: surface frames from the 60 s product; SPH particle frames every 60 s
+  const times = parts ? M.particles3d.times : M.times;
+  const offsets = parts ? M.particles3d.counts.reduce((a, c, i) => (a.push(i ? a[i - 1] + M.particles3d.counts[i - 1] : 0), a), []) : null;
+  const surfFrame = (t) => { let best = 0; M.times.forEach((x, i) => { if (Math.abs(x - t) < Math.abs(M.times[best] - t)) best = i; }); return best; };
+
+  function drawSurface(fr) {
+    const off = fr * n;
+    for (let k = 0; k < n; k++) {
+      const q = depth[off + k], wet = q > 0;
+      wetv[k] = wet ? 1 : 0;
+      const h = q * dstep, z = wet ? cellZ[k] + h + 0.8 : cellZ[k];
+      wv[k * 3 + 1] = (z - zref) * EX;
+      const b = colour === "depth" ? Math.min(255, Math.round(Math.sqrt(h / 60) * 255)) : Math.min(255, Math.round((speed[off + k] * vstep / 25) * 255));
+      const L = colour === "depth" ? LD : LS;
+      wc[k * 3] = L[b * 3] / 255; wc[k * 3 + 1] = L[b * 3 + 1] / 255; wc[k * 3 + 2] = L[b * 3 + 2] / 255;
+    }
+    // draw only cells whose four corners are wet: dry ground is never covered by a water sheet
+    let m = 0;
+    for (let q = 0; q < quads.length; q += 4) {
+      const a = quads[q], b = quads[q + 1], d = quads[q + 2], e = quads[q + 3];
+      if (wetv[a] && wetv[b] && wetv[d] && wetv[e]) { triBuf[m++] = a; triBuf[m++] = b; triBuf[m++] = d; triBuf[m++] = b; triBuf[m++] = e; triBuf[m++] = d; }
+    }
+    wg.index.needsUpdate = true; wg.setDrawRange(0, m);
+    wg.attributes.position.needsUpdate = true; wg.attributes.color.needsUpdate = true; wg.computeVertexNormals();
+  }
+  function drawParticles(fr) {
+    const o = offsets[fr], cnt = M.particles3d.counts[fr], sc = M.particles3d.scale, og = M.particles3d.origin;
+    const pos = points.geometry.attributes.position.array, cl = points.geometry.attributes.color.array;
+    for (let p = 0; p < cnt; p++) {
+      const q = (o + p) * 3, x = og[0] + parts.xyz[q] * sc[0], y = og[1] + parts.xyz[q + 1] * sc[1], z = og[2] + parts.xyz[q + 2] * sc[2];
+      pos[p * 3] = x; pos[p * 3 + 1] = (z - zref) * EX; pos[p * 3 + 2] = -y;
+      const s = parts.spd[o + p] * sc[3];
+      const b = colour === "speed" ? Math.min(255, Math.round(s / 25 * 255)) : Math.min(255, 60 + Math.round(Math.min(1, (z - zref) / 400) * 150));
+      const L = colour === "speed" ? LS : LD;
+      cl[p * 3] = L[b * 3] / 255; cl[p * 3 + 1] = L[b * 3 + 1] / 255; cl[p * 3 + 2] = L[b * 3 + 2] / 255;
+    }
+    points.geometry.setDrawRange(0, cnt);
+    points.geometry.attributes.position.needsUpdate = true; points.geometry.attributes.color.needsUpdate = true;
+  }
+  function draw() {
+    const t = times[frame];
+    $("clock").textContent = Hydro.mmss(t);
+    water.visible = mode === "surface";
+    if (points) points.visible = mode === "particles";
+    if (mode === "surface") drawSurface(parts ? surfFrame(t) : frame); else drawParticles(frame);
+  }
+  function legend() {
+    if (colour === "speed") Hydro.rampLegend($("legend"), Hydro.RAMPS.speed, ["0", "5", "10", "15", "20", "25+"], "Velocity, m/s");
+    else if (mode === "particles") Hydro.rampLegend($("legend"), ["#6fc2e6", "#2f8fd0", "#1d5aa6", "#1c2f78", "#160f45"], ["", "", "", "", "", ""], "Particles shaded by elevation");
+    else Hydro.rampLegend($("legend"), ["#6fc2e6", "#2f8fd0", "#1d5aa6", "#1c2f78", "#160f45"], ["0.1", "2", "7", "15", "30", "60"], "Water depth, m");
+  }
+
+  // ---------------------------------------------------------------- controls
+  $("modes").innerHTML = parts
+    ? `<button type="button" data-mode="particles" aria-pressed="true">SPH particles</button><button type="button" data-mode="surface" aria-pressed="false">Water surface</button>`
+    : `<button type="button" data-mode="surface" aria-pressed="true">Water surface</button>`;
+  document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("[data-mode]").forEach((x) => x.setAttribute("aria-pressed", x === b)); mode = b.dataset.mode; legend(); draw();
+  }));
+  document.querySelectorAll("[data-col]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("[data-col]").forEach((x) => x.setAttribute("aria-pressed", x === b)); colour = b.dataset.col; legend(); draw();
+  }));
+  $("exag").addEventListener("change", () => { EX = +$("exag").value; fillTerrain(); tg.attributes.position.needsUpdate = true; buildDamPatch(); placeLabel(); draw(); });
+  const th = S.thalweg, at = (km) => th.reduce((a, b) => (Math.abs(b[2] - km * 1000) < Math.abs(a[2] - km * 1000) ? b : a));
+  function cam(where) {
+    const reach = th[th.length - 1][2] / 1000;
+    const [p, dist] = where === "dam" ? [at(0.1), 2200] : where === "mid" ? [at(reach * 0.45), 9000] : [at(reach * 0.5), reach * 1000 * 0.95];
+    const zc = cellZ[0] ? (p[3] ?? zref) : zref, target = new THREE.Vector3(p[0], (zc - zref) * EX, -p[1]);
+    controls.target.copy(target);
+    camera.position.set(target.x - dist * 0.55, target.y + dist * 0.62, target.z + dist * 0.75);
+    controls.update();
+  }
+  document.querySelectorAll("[data-cam]").forEach((b) => b.addEventListener("click", () => cam(b.dataset.cam)));
+  const sl = $("t"); sl.max = times.length - 1; sl.addEventListener("input", () => { frame = +sl.value; draw(); });
+  let timer = null;
+  const frameMin = times.length > 1 ? (times[1] - times[0]) / 60 : 1;
+  const start = () => { clearInterval(timer); timer = setInterval(() => { if (frame >= times.length - 1) { stop(); return; } frame += 1; sl.value = frame; draw(); }, 1000 / (+$("rate").value / frameMin)); $("play").textContent = "Pause"; };
+  const stop = () => { clearInterval(timer); timer = null; $("play").textContent = frame >= times.length - 1 ? "Replay" : "Play"; };
+  $("play").addEventListener("click", () => { if (timer) return stop(); if (frame >= times.length - 1) { frame = 0; sl.value = 0; draw(); } start(); });
+  $("rate").addEventListener("change", () => { if (timer) start(); });
+  function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(stage); resize();
+  $("note").textContent = parts
+    ? `${fmt(M.particles3d.counts[0], 0)} particles at the start. Particles that pass the downstream end of the ${fmt(th[th.length - 1][2] / 1000, 0)} km domain leave the simulation.`
+    : `Surface drawn on ${fmt(n, 0)} cells; dry cells are hidden below the terrain.`;
+  $("note").textContent += ` Time-lapse: each frame is ${fmt(frameMin, 0)} min of simulated flood; the full ${fmt(times[times.length - 1] / 60, 0)} min run plays in ${fmt(times[times.length - 1] / 60 / 2, 0)} s at the default speed. Dam embankment in rust, breach notch in amber.`;
+  $("msg").remove();
+  cam("dam"); legend(); draw();
+  (function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+})();
+</script>

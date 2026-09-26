@@ -1,0 +1,204 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>JalPravah Comparison</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="hydro.css">
+<script src="data/scenario.js"></script>
+<script src="data/sph.js"></script>
+<script src="data/delft3d.js"></script>
+<script src="data/comparison.js"></script>
+<script src="hydro.js"></script>
+<style>
+  .score { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .score > div { background: var(--surface); padding: 14px; display: grid; gap: 3px; align-content: start; }
+  .score .v { font: 500 26px var(--font-mono); }
+  .score .l { font-size: 12.5px; color: var(--muted); }
+  @media (max-width: 760px) { .score { grid-template-columns: repeat(2, 1fr); } }
+  td.sph { color: var(--sph); } td.d3d { color: var(--d3d); }
+  .diffbar { position: relative; width: 140px; height: 10px; background: var(--surface-2); border-radius: 2px; display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .diffbar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+  .diffbar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  .maplabel { font: 600 12px var(--font-head); text-transform: uppercase; letter-spacing: .08em; }
+  .maps { display: grid; gap: 8px; }
+  .key2 { display: flex; gap: 14px; font: 600 12px var(--font-head); letter-spacing: .05em; text-transform: uppercase; }
+  .key2 .s { color: var(--sph); } .key2 .d { color: var(--d3d); }
+</style>
+
+<header class="appbar">
+  <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="index.html">Overview</a>
+    <a href="sph.html">SPH</a>
+    <a href="sph3d.html">SPH 3D</a>
+    <a href="delft3d.html">Delft3D</a>
+    <a href="delft3d3d.html">Delft3D 3D</a>
+    <a href="comparison.html" class="here">Comparison</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="pagehead">
+    <div>
+      <span class="key2"><span class="s">■ SPH</span><span class="d">■ Delft3D</span></span>
+      <h1>Same flood, two independent models</h1>
+      <p class="lede" id="lede"></p>
+    </div>
+    <span class="status" id="status"></span>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>How well do the flood maps agree?</h2><p id="agree-note"></p></div>
+    <div class="score" id="score"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Key results</h2><p>Each value is computed separately from that model's own output, with the same definitions, grid and time window. Bars show SPH relative to Delft3D.</p></div>
+    <div id="summary"></div>
+  </section>
+
+  <section class="panel">
+    <div class="map-tools">
+      <div class="seg" role="group" aria-label="Comparison view" id="views">
+        <button type="button" data-view="depth" aria-pressed="true">Depth over time</button>
+        <button type="button" data-view="hmax" aria-pressed="false">Max depth</button>
+        <button type="button" data-view="agree" aria-pressed="false">Where they agree</button>
+        <button type="button" data-view="diff" aria-pressed="false">Depth difference</button>
+      </div>
+    </div>
+    <div class="maps">
+      <span class="maplabel" id="lab-a" style="color:var(--sph)">SPH</span>
+      <div id="map-a"></div>
+      <span class="maplabel" id="lab-b" style="color:var(--d3d)">Delft3D</span>
+      <div id="map-b"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="timeline" id="timeline">
+      <button type="button" id="play" style="background:var(--ink);border-color:var(--ink)">Play</button>
+      <input type="range" id="t" min="0" max="0" value="0" aria-label="Simulation time">
+      <label class="speed" for="rate"><span class="mono" id="clock"></span>&nbsp; Playback <select id="rate"><option value="1">1 s = 1 min</option><option value="2">1 s = 2 min</option><option value="4" selected>1 s = 4 min</option><option value="8">1 s = 8 min</option></select></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Flood wave at four sections</h2><p>Solid SPH, dashed Delft3D.</p></div>
+    <div class="charts" id="hydro"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Section by section</h2><p>Δ is SPH minus Delft3D.</p></div>
+    <div id="stations"></div>
+  </section>
+
+  <details class="panel details">
+    <summary><h2>Why the models differ</h2><span class="muted">method, set-up and notes</span></summary>
+    <div id="reading" class="note" style="display:grid;gap:8px;max-width:95ch"></div>
+    <div id="setup"></div>
+  </details>
+</div>
+
+<script>
+(async function () {
+  const D = window.HYDRO_DATA || {}, S = D.scenario, A = D.sph, B = D.delft3d, C = D.comparison;
+  const $ = (id) => document.getElementById(id), fmt = Hydro.fmt;
+  if (!S || !A || !B || !C) { $("score").innerHTML = `<div><span class="l">Both simulations must finish and the comparison must be computed first.</span></div>`; return; }
+  const g = C.agreement, win = C.common_window_min;
+  const interim = A.metrics.run.simulated_s < A.planned_s - 1 || B.metrics.run.simulated_s < B.planned_s - 1;
+  $("status").className = "status " + (interim ? "run" : "ok");
+  $("status").textContent = interim ? `Interim · first ${fmt(win, 1)} min` : `Final · ${fmt(win, 0)} min compared`;
+  $("lede").textContent = `Both models start from the same DEM, dam, ${fmt(S.reservoir.volume_m3 / 1e6, 1)} Mm³ reservoir and breach. They are compared over the first ${fmt(win, 1)} minutes after the breach${interim ? ", the part the SPH run has reached so far" : ""}.`;
+  $("score").innerHTML = [
+    [fmt(g.critical_success_index, 2), "Critical success index: overlap of the two flood extents (1 = identical)"],
+    [fmt(g.hit_rate * 100, 0) + " %", "of Delft3D's flooded area is also flooded by SPH"],
+    [fmt(g.false_alarm_ratio * 100, 0) + " %", "of SPH's flooded area stays dry in Delft3D"],
+    [fmt(g.hmax_rmse_m, 1) + " m", "RMS difference in maximum depth"],
+  ].map(([v, l]) => `<div><span class="v">${v}</span><span class="l">${l}</span></div>`).join("");
+  $("agree-note").textContent = `Flooded in both ${fmt(g.area_both_km2, 2)} km² · only SPH ${fmt(g.area_sph_only_km2, 2)} km² · only Delft3D ${fmt(g.area_delft3d_only_km2, 2)} km²`;
+
+  const bar = (r) => {
+    if (r.relative_pct === null) return "";
+    const p = Math.max(-100, Math.min(100, r.relative_pct)), w = Math.abs(p) / 2;
+    return `<span class="diffbar"><i style="left:${p < 0 ? 50 - w : 50}%;width:${w}%;background:${p < 0 ? "var(--d3d)" : "var(--sph)"}"></i></span>`;
+  };
+  const val = (v, d) => (v === null || v === undefined ? "not reached" : fmt(v, d));
+  Hydro.table($("summary"), ["Quantity", "SPH", "Delft3D", "SPH vs Delft3D"],
+    C.summary_rows.map((r) => [`${r.label} <span class="muted">${r.unit === "count" ? "" : r.unit}</span>`, val(r.sph, r.decimals), val(r.delft3d, r.decimals),
+      r.relative_pct === null ? "–" : `${r.relative_pct > 0 ? "+" : ""}${fmt(r.relative_pct, 0)} %${bar(r)}`]));
+  $("summary").querySelectorAll("tbody tr").forEach((tr) => { tr.children[1].classList.add("sph"); tr.children[2].classList.add("d3d"); });
+
+  // maps
+  const cells = await Hydro.i32(S.cells_b64), resv = await Hydro.u8(S.reservoir_b64), n = cells.length;
+  const scen = { grid: S.grid, cells, thalweg: S.thalweg, stations: S.stations, roads: [], buildings: [], places: S.places };
+  const ma = new Hydro.FloodMap($("map-a"), scen), mb = new Hydro.FloodMap($("map-b"), scen);
+  await ma.setTerrain(S.terrain_png); await mb.setTerrain(S.terrain_png); ma.addOverlay(scen); mb.addOverlay(scen);
+  const sync = (src, dst) => { const f = src._apply.bind(src); src._apply = () => { f(); dst.k = src.k; dst.tx = src.tx; dst.ty = src.ty; dst.stage.style.transform = src.stage.style.transform; }; };
+  sync(ma, mb); sync(mb, ma);
+  const dA = await Hydro.u8(A.depth_b64), dB = await Hydro.u8(B.depth_b64);
+  const hA = await Hydro.f32(A.max.hmax), hB = await Hydro.f32(B.max.hmax);
+  const agree = await Hydro.u8(C.agreement_b64), hdiff = await Hydro.f32(C.hdiff_b64);
+  const LD = Hydro.ramp(Hydro.RAMPS.depth), LF = Hydro.ramp(Hydro.RAMPS.diff);
+  const thr = S.thresholds.wet, step = S.depth_step;
+  const times = A.times.filter((t) => t <= win * 60 + 1);
+  const fB = (t) => B.times.findIndex((x) => Math.abs(x - t) < 1);
+  let view = "depth", k = 0;
+  const dByte = (q) => (q ? Math.min(255, Math.round(Math.sqrt(q * step / 60) * 255)) : -1);
+  const hByte = (v) => (v >= thr ? Math.min(255, Math.round(Math.sqrt(v / 60) * 255)) : -1);
+  const masked = (arr) => arr.map((v, i) => (resv[i] ? 0 : v));
+  function draw() {
+    const t = times[k], jb = fB(t), single = view === "agree" || view === "diff";
+    $("clock").textContent = Hydro.mmss(t);
+    $("lab-a").textContent = view === "agree" ? "Maximum flood extent: overlap" : view === "diff" ? "Maximum depth: SPH minus Delft3D" : "SPH";
+    $("lab-a").style.color = single ? "var(--ink)" : "var(--sph)";
+    $("map-b").hidden = $("lab-b").hidden = single;
+    $("timeline").classList.toggle("dim", view !== "depth");
+    if (view === "depth") { ma.draw(dA.subarray(k * n, k * n + n), LD, dByte); if (jb >= 0) mb.draw(dB.subarray(jb * n, jb * n + n), LD, dByte); }
+    else if (view === "hmax") { ma.draw(masked(hA), LD, hByte); mb.draw(masked(hB), LD, hByte); }
+    else if (view === "agree") ma.drawClasses(Array.from(agree, (c) => c - 1), ["#5b6f86", Hydro.cssVar("--sph"), Hydro.cssVar("--d3d")]);
+    else ma.draw(hdiff, LF, (v) => (v < -900 ? -1 : Math.max(0, Math.min(255, Math.round((v / 20 + 0.5) * 255)))));
+  }
+  function legend() {
+    const el = $("legend");
+    if (view === "depth" || view === "hmax") Hydro.rampLegend(el, Hydro.RAMPS.depth, ["0.1", "2", "7", "15", "30", "60"], "Water depth, m");
+    else if (view === "agree") Hydro.swatchLegend(el, [["Flooded in both", "#5b6f86"], ["Only SPH", Hydro.cssVar("--sph")], ["Only Delft3D", Hydro.cssVar("--d3d")]], "Maximum extent");
+    else Hydro.rampLegend(el, Hydro.RAMPS.diff, ["−10", "−5", "0", "+5", "+10"], "SPH minus Delft3D, m (blue: Delft3D deeper)");
+  }
+  document.querySelectorAll("#views button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("#views button").forEach((x) => x.setAttribute("aria-pressed", x === b)); view = b.dataset.view; legend(); draw();
+  }));
+  const sl = $("t"); sl.max = times.length - 1; sl.addEventListener("input", () => { k = +sl.value; draw(); });
+  let timer = null;
+  const frameMin = times.length > 1 ? (times[1] - times[0]) / 60 : 1;
+  const stop = () => { clearInterval(timer); timer = null; $("play").textContent = k >= times.length - 1 ? "Replay" : "Play"; };
+  const start = () => { clearInterval(timer); timer = setInterval(() => { if (k >= times.length - 1) return stop(); k += 1; sl.value = k; draw(); }, 1000 / (+$("rate").value / frameMin)); $("play").textContent = "Pause"; };
+  $("play").addEventListener("click", () => {
+    if (timer) return stop();
+    if (view !== "depth") document.querySelector('[data-view="depth"]').click();
+    if (k >= times.length - 1) { k = 0; sl.value = 0; draw(); }
+    start();
+  });
+  $("rate").addEventListener("change", () => { if (timer) start(); });
+  legend(); draw();
+
+  // hydrographs at four key sections
+  const tA = A.metrics.timeseries, tB = B.metrics.timeseries, host = $("hydro");
+  const pick = [0, 2, 4, S.stations.length - 1].filter((v, i, a) => a.indexOf(v) === i && v < S.stations.length);
+  pick.forEach((i) => {
+    const el = document.createElement("div"); el.className = "chart"; host.append(el);
+    Hydro.lineChart(el, [{ name: "SPH", color: "var(--sph)", x: tA.time_min, y: tA.station_discharge_m3s[i] },
+      { name: "Delft3D", color: "var(--d3d)", x: tB.time_min, y: tB.station_discharge_m3s[i], dash: "6 4" }],
+      { title: `${S.stations[i].name}`, xLabel: "minutes after breach", yLabel: "m³/s", xMax: win, height: 200 });
+  });
+  Hydro.table($("stations"), ["Section", "Arrival SPH", "Arrival Delft3D", "Δ min", "Peak Q SPH", "Peak Q Delft3D", "Peak depth SPH", "Peak depth Delft3D"],
+    C.stations.map((s) => [s.name, val(s.arrival_time_min.sph, 1), val(s.arrival_time_min.delft3d, 1), s.arrival_time_min.difference === null ? "–" : fmt(s.arrival_time_min.difference, 1),
+      s.peak_discharge_m3s.sph ? fmt(s.peak_discharge_m3s.sph, 0) : "–", s.peak_discharge_m3s.delft3d ? fmt(s.peak_discharge_m3s.delft3d, 0) : "–",
+      s.peak_depth_m.sph ? fmt(s.peak_depth_m.sph, 1) : "–", s.peak_depth_m.delft3d ? fmt(s.peak_depth_m.delft3d, 1) : "–"]));
+
+  $("reading").innerHTML = (C.reading || []).map((p) => `<p style="margin:0">${p}</p>`).join("");
+  const rs = C.run.sph, rd = C.run.delft3d, v = (x) => (x === undefined || x === null ? "–" : typeof x === "number" ? fmt(x, x < 10 ? 4 : 0) : x);
+  Hydro.table($("setup"), ["", "SPH", "Delft3D"], [["Engine", rs.solver, rd.solver], ["Resolution", `${v(rs.particle_spacing_m)} m particles (${v(rs.fluid_particles)} water, ${v(rs.boundary_particles)} terrain)`, rd.grid],
+    ["Friction / dissipation", rs.viscosity + ", " + rs.boundary, rd.roughness], ["Time step", rs.time_step_s, v(rd.time_step_s) + " s"],
+    ["Computing time", rs.wall_clock_s ? fmt(rs.wall_clock_s / 3600, 1) + " h" : "running", rd.wall_clock_s ? fmt(rd.wall_clock_s / 3600, 1) + " h" : "–"]]);
+  $("setup").querySelectorAll("td").forEach((td) => (td.style.whiteSpace = "normal"));
+})();
+</script>

@@ -1,0 +1,8 @@
+# simulation runs, solver output and scratch work stay on the workstation (GB-scale)
+runs/
+work/
+slide/
+__pycache__/
+*.pyc
+*.log
+solvers/status.txt

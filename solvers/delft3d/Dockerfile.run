@@ -1,0 +1,11 @@
+# Runtime image: compiled Delft3D-FLOW + nefis_dump exporter (build context = hydrosim/solvers/delft3d)
+FROM hydrosim/delft3d-flow:5.01
+COPY nefis_dump.c /d3d/tools/nefis_dump.c
+RUN NEFIS_INC=/d3d/src/utils_lgpl/nefis/packages/nefis/include \
+ && NEFIS_LIB=$(dirname $(find /d3d/src -name 'libNefis.so*' -o -name 'libnefis.so*' | head -1)) \
+ && echo "nefis lib dir: $NEFIS_LIB" && ls $NEFIS_LIB | grep -i nefis \
+ && gcc -std=gnu99 -O2 -I$NEFIS_INC -o /usr/local/bin/nefis_dump /d3d/tools/nefis_dump.c -L$NEFIS_LIB -lnefis -lm \
+ && echo "$NEFIS_LIB" > /etc/ld.so.conf.d/nefis.conf && ldconfig
+ENV PATH=/d3d/src/bin:/d3d/src/engines_gpl/flow2d3d/scripts:$PATH
+ENV LD_LIBRARY_PATH=/d3d/src/lib
+WORKDIR /job

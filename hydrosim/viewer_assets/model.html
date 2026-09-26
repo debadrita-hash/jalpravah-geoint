@@ -1,0 +1,238 @@
+<title>JalPravah __LABEL__</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="hydro.css">
+<script src="data/scenario.js"></script>
+<script src="data/__MODEL__.js"></script>
+<script src="hydro.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => document.body.classList.add("model-__MODEL__"));</script>
+
+<header class="appbar">
+  <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="index.html">Overview</a>
+    <a href="sph.html" id="nav-sph">SPH</a>
+    <a href="sph3d.html">SPH 3D</a>
+    <a href="delft3d.html" id="nav-delft3d">Delft3D</a>
+    <a href="delft3d3d.html">Delft3D 3D</a>
+    <a href="comparison.html">Comparison</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="pagehead">
+    <div>
+      <span class="badge">__LABEL__ simulation</span>
+      <h1 id="title"></h1>
+      <p class="lede" id="lede"></p>
+    </div>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="panel">
+    <div class="map-tools">
+      <div class="seg" role="group" aria-label="Map layer" id="layers">
+        <button type="button" data-layer="depth" aria-pressed="true">Depth</button>
+        <button type="button" data-layer="speed" aria-pressed="false">Velocity</button>
+        <button type="button" data-layer="hmax" aria-pressed="false">Max depth</button>
+        <button type="button" data-layer="hazard" aria-pressed="false">Hazard</button>
+        <button type="button" data-layer="arrival" aria-pressed="false">Arrival time</button>
+      </div>
+      <div class="seg" role="group" aria-label="Zoom to">
+        <button type="button" data-focus="dam">Dam</button>
+        <button type="button" data-focus="all">Whole reach</button>
+      </div>
+    </div>
+    <div id="map"></div>
+    <div class="legend" id="legend"></div>
+    <div class="timeline" id="timeline">
+      <button type="button" id="play">Play</button>
+      <input type="range" id="t" min="0" max="0" value="0" aria-label="Simulation time">
+      <label class="speed" for="rate">Playback <select id="rate"><option value="1">1 s = 1 min of flood</option><option value="2">1 s = 2 min</option><option value="4" selected>1 s = 4 min</option><option value="8">1 s = 8 min</option><option value="16">1 s = 16 min</option></select></label>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="panel"><div class="chart" id="c-q"></div></section>
+    <section class="panel"><div class="chart" id="c-h"></div></section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Along the river</h2><p>Arrival is the first time the deepest point of the section exceeds <span id="arr-thr"></span> m.</p></div>
+    <div id="stations"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>What the water reaches</h2><p>OpenStreetMap buildings, roads, bridges and places inside this run's flood extent.</p></div>
+    <div class="counts" id="counts"></div>
+    <h3 id="dmg-title" hidden>Estimated building damage</h3>
+    <div class="counts" id="damage"></div>
+    <p class="note" id="dmg-note"></p>
+    <div id="named"></div>
+  </section>
+
+  <details class="panel details">
+    <summary><h2>Run details</h2><span class="muted">model set-up, volume balance, saved files</span></summary>
+    <div class="two">
+      <div><h3>Set-up</h3><dl class="kv" id="setup"></dl></div>
+      <div><h3>Volume balance</h3><dl class="kv" id="mass"></dl><p class="note" id="mass-note"></p></div>
+    </div>
+    <h3>Saved files</h3>
+    <div class="files" id="files"></div>
+  </details>
+</div>
+
+<script>
+(async function () {
+  const MODEL = "__MODEL__", LABEL = "__LABEL__";
+  document.getElementById("nav-" + MODEL).classList.add("here");
+  const S = window.HYDRO_DATA && window.HYDRO_DATA.scenario, M = window.HYDRO_DATA && window.HYDRO_DATA[MODEL];
+  const $ = (id) => document.getElementById(id), fmt = Hydro.fmt;
+  if (S) $("title").textContent = S.title;
+  if (!S || !M) { $("kpis").innerHTML = `<div class="kpi"><span class="l">No ${LABEL} results yet.</span></div>`; return; }
+  $("title").textContent = S.title;
+  const m = M.metrics, run = m.run, imp = M.impacts ? M.impacts.summary : null;
+  const done = run.simulated_s >= M.planned_s - 1;
+  $("status").className = "status " + (done ? "ok" : "run");
+  $("status").textContent = done ? `Complete · ${fmt(run.simulated_s / 60, 0)} min simulated` : `Running · ${fmt(run.simulated_s / 60, 1)} of ${fmt(M.planned_s / 60, 0)} min so far`;
+  $("lede").textContent = MODEL === "sph"
+    ? `DualSPHysics 5.4: the water is ${fmt(run.fluid_particles, 0)} particles of ${fmt(run.particle_spacing_m, 0)} m moving in 3-D over the DEM terrain.`
+    : `Delft3D-FLOW 4: depth-averaged shallow-water equations on ${fmt(run.active_cells, 0)} cells of ${S.grid.dx} m, Manning friction.`;
+  $("arr-thr").textContent = S.thresholds.arrival;
+
+  const st = (km) => m.stations.reduce((a, b) => (Math.abs(b.chainage_km - km) < Math.abs(a.chainage_km - km) ? b : a));
+  const kp = [
+    [m.breach_peak_discharge_m3s, 0, "m³/s", "Peak discharge at the breach"],
+    [m.breach_time_to_peak_min, 1, "min", "Time to breach peak"],
+    [m.flooded_area_km2, 2, "km²", "Flooded area"],
+    [m.max_depth_m, 1, "m", "Maximum flow depth"],
+    [m.max_velocity_ms, 1, "m/s", "Maximum velocity"],
+    [m.max_front_distance_km, 1, "km", "Flood front reach"],
+    [st(10).arrival_time_min, 1, "min", "Arrival at 10 km"],
+    [st(25).arrival_time_min, 1, "min", "Arrival at 25 km"],
+  ];
+  $("kpis").innerHTML = kp.map(([v, d, u, l]) => `<div class="kpi"><span class="v">${v === null || v === undefined ? "not yet" : fmt(v, d)}${v === null || v === undefined ? "" : `<small>${u}</small>`}</span><span class="l">${l}</span></div>`).join("");
+
+  // ---------------------------------------------------------- map
+  const cells = await Hydro.i32(S.cells_b64), cellZ = await Hydro.f32(S.cell_z_b64), resv = await Hydro.u8(S.reservoir_b64);
+  const scen = { grid: S.grid, cells, thalweg: S.thalweg, stations: S.stations, roads: S.roads, buildings: S.buildings, places: S.places };
+  const map = new Hydro.FloodMap($("map"), scen);
+  await map.setTerrain(S.terrain_png);
+  map.addOverlay(scen);
+  const n = cells.length, depth = await Hydro.u8(M.depth_b64), speed = await Hydro.u8(M.speed_b64);
+  const mx = {}; for (const k in M.max) mx[k] = await Hydro.f32(M.max[k]);
+  const dstep = S.depth_step, vstep = S.speed_step, thr = S.thresholds.wet;
+  const L = { depth: Hydro.ramp(Hydro.RAMPS.depth), speed: Hydro.ramp(Hydro.RAMPS.speed), arrival: Hydro.ramp(Hydro.RAMPS.arrival) };
+  const tmaxMin = M.times[M.times.length - 1] / 60;
+  let layer = "depth", frame = 0;
+  const depthByte = (q) => (q ? Math.min(255, Math.round(Math.sqrt(q * dstep / 60) * 255)) : -1);
+  const speedByte = (q) => (q ? Math.min(255, Math.round((q * vstep / 25) * 255)) : -1);
+  const charts = [$("c-q"), $("c-h")];
+  function draw() {
+    const off = frame * n;
+    if (layer === "depth") map.draw(depth.subarray(off, off + n), L.depth, depthByte);
+    else if (layer === "speed") map.draw(speed.subarray(off, off + n), L.speed, speedByte);
+    else if (layer === "hmax") map.draw(mx.hmax.map((v, k) => (v >= thr && !resv[k] ? v : 0)), L.depth, (v) => (v ? Math.min(255, Math.round(Math.sqrt(v / 60) * 255)) : -1));
+    else if (layer === "hazard") map.drawClasses(mx.hazard_class.map((c, k) => (mx.hmax[k] >= thr && !resv[k] ? c : -1)), Hydro.HAZARD.map((h) => h[1]));
+    else if (layer === "arrival") map.draw(mx.arrival_min.map((v, k) => (resv[k] ? NaN : v)), L.arrival, (v) => (Number.isFinite(v) ? Math.min(255, Math.round(v / tmaxMin * 255)) : -1));
+    const anim = layer === "depth" || layer === "speed";
+    map.hud.innerHTML = anim ? `<span class="clock">${Hydro.mmss(M.times[frame])}</span>` : "";
+    $("timeline").classList.toggle("dim", !anim);
+    charts.forEach((c) => c._setCursor && c._setCursor(anim ? M.times[frame] / 60 : null));
+  }
+  function legend() {
+    const el = $("legend");
+    if (layer === "depth" || layer === "hmax") Hydro.rampLegend(el, Hydro.RAMPS.depth, ["0.1", "2", "7", "15", "30", "60"], "Water depth, m");
+    else if (layer === "speed") Hydro.rampLegend(el, Hydro.RAMPS.speed, ["0", "5", "10", "15", "20", "25+"], "Velocity, m/s");
+    else if (layer === "hazard") Hydro.swatchLegend(el, Hydro.HAZARD, "Hazard to people (DEFRA FD2320)");
+    else Hydro.rampLegend(el, Hydro.RAMPS.arrival, [0, 0.2, 0.4, 0.6, 0.8, 1].map((f) => fmt(f * tmaxMin, 0)), `Minutes until ${S.thresholds.arrival} m of water`);
+  }
+  map.probe = (k) => {
+    const off = frame * n, anim = layer === "depth" || layer === "speed";
+    const rows = [`ground ${fmt(cellZ[k], 1)} m a.s.l.`];
+    if (anim) rows.push(`${Hydro.mmss(M.times[frame])}: ${depth[off + k] ? `${fmt(depth[off + k] * dstep, 2)} m deep, ${fmt(speed[off + k] * vstep, 1)} m/s` : "dry"}`);
+    if (mx.hmax[k] >= thr && !resv[k]) rows.push(`max ${fmt(mx.hmax[k], 2)} m, ${fmt(mx.vmax[k], 1)} m/s · arrives ${fmt(mx.arrival_min[k], 1)} min`);
+    return rows.join("<br>");
+  };
+  document.querySelectorAll("#layers button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("#layers button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    layer = b.dataset.layer; legend(); draw();
+  }));
+  document.querySelectorAll("[data-focus]").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.focus === "all") map.reset(); else map.focus((0 - S.grid.x0) / S.grid.dx, (0 - S.grid.y0) / S.grid.dx, 6);
+  }));
+  const slider = $("t"); slider.max = M.nframes - 1;
+  slider.addEventListener("input", () => { frame = +slider.value; draw(); });
+  let timer = null;
+  const frameMin = M.times.length > 1 ? (M.times[1] - M.times[0]) / 60 : 1;
+  const stop = () => { clearInterval(timer); timer = null; $("play").textContent = frame >= M.nframes - 1 ? "Replay" : "Play"; };
+  const start = () => { clearInterval(timer); timer = setInterval(() => { if (frame >= M.nframes - 1) return stop(); frame += 1; slider.value = frame; draw(); }, 1000 / (+$("rate").value / frameMin)); $("play").textContent = "Pause"; };
+  $("play").addEventListener("click", () => {
+    if (timer) return stop();
+    if (layer !== "depth" && layer !== "speed") document.querySelector('[data-layer="depth"]').click();
+    if (frame >= M.nframes - 1) { frame = 0; slider.value = 0; draw(); }
+    start();
+  });
+  $("rate").addEventListener("change", () => { if (timer) start(); });
+
+  // ---------------------------------------------------------- charts & tables
+  const ts = m.timeseries, tmin = ts.time_min;
+  const stCol = Hydro.ramp(Hydro.RAMPS.arrival, S.stations.length + 2);
+  const col = (i) => `rgb(${stCol[(i + 2) * 3]},${stCol[(i + 2) * 3 + 1]},${stCol[(i + 2) * 3 + 2]})`;
+  Hydro.lineChart($("c-q"), S.stations.map((s, i) => ({ name: s.name, color: col(i), x: tmin, y: ts.station_discharge_m3s[i] })),
+    { title: "Discharge along the river", xLabel: "minutes after breach", yLabel: "m³/s" });
+  Hydro.lineChart($("c-h"), S.stations.map((s, i) => ({ name: s.name, color: col(i), x: tmin, y: ts.station_depth_m[i] })),
+    { title: "Water depth along the river", xLabel: "minutes after breach", yLabel: "m" });
+  Hydro.table($("stations"), ["Section", "km downstream", "Arrival, min", "Peak discharge, m³/s", "Peak at, min", "Peak depth, m"],
+    m.stations.map((s) => [s.name.replace(/ \(.*\)/, ""), fmt(s.chainage_km, 1), s.arrival_time_min === null ? "not reached" : fmt(s.arrival_time_min, 1),
+      s.peak_discharge_m3s ? fmt(s.peak_discharge_m3s, 0) : "–", s.peak_discharge_m3s ? fmt(s.time_of_peak_discharge_min, 1) : "–", s.peak_depth_m ? fmt(s.peak_depth_m, 1) : "–"]));
+
+  if (!imp && M.impacts && M.impacts.error) {
+    $("counts").innerHTML = `<div style="grid-column:1/-1"><span>OpenStreetMap data could not be downloaded: ${M.impacts.error}</span></div>`;
+    if (location.protocol.startsWith("http")) {
+      $("named").innerHTML = `<button class="btn" type="button" id="retry" style="font:600 13px var(--font-head);padding:7px 14px;border:1px solid var(--rule);border-radius:4px;background:#fff;cursor:pointer">Retry download</button> <span class="note" id="retrymsg"></span>`;
+      $("retry").onclick = async () => {
+        $("retry").disabled = true;
+        const name = location.pathname.split("/")[2];
+        const r = await fetch("/api/exposure", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenario: name }) });
+        $("retrymsg").textContent = r.ok ? "Downloading and recomputing; reload this page when the job on the Scenarios page has finished." : (await r.json()).error;
+      };
+    }
+  }
+  if (imp) {
+    $("counts").innerHTML = [[imp.building, 0, "buildings"], [imp.road_km, 1, "km of road flooded"], [imp.road_impassable_km ?? 0, 1, "km impassable (> 0.3 m)"], [imp.bridge, 0, "bridges"], [imp.settlement, 0, "named places"], [imp.facility, 0, "schools / health / power"]]
+      .map(([v, d, l]) => `<div><b>${fmt(v, d)}</b><span>${l}</span></div>`).join("");
+    if (imp.damage) {
+      const dm = imp.damage;
+      $("dmg-title").hidden = false;
+      $("damage").innerHTML = [[dm.destroyed, 0, "destroyed (h·v ≥ 7 m²/s)"], [dm["partially damaged"], 0, "partially damaged (h·v ≥ 3 m²/s)"], [dm.inundated, 0, "inundated"],
+        [dm.damage_equivalent_m2 / 1e4, 2, "ha of floor area, damage-equivalent"]].map(([v, d, l]) => `<div><b>${fmt(v, d)}</b><span>${l}</span></div>`).join("");
+      $("dmg-note").textContent = `${dm.method}. Footprints from OpenStreetMap (${fmt(dm.footprint_m2 / 1e4, 2)} ha reached). No monetary value is given: no reliable open unit cost exists for this region.`;
+    }
+    const named = M.impacts.assets.filter((a) => a.name && a.kind !== "building").sort((a, b) => (a.arrival_min ?? 1e9) - (b.arrival_min ?? 1e9)).slice(0, 12);
+    if (named.length) Hydro.table($("named"), ["Named place or asset", "Type", "Water arrives, min", "Max depth, m"],
+      named.map((a) => [a.name, a.kind, fmt(a.arrival_min, 1), fmt(a.max_depth_m, 1)]));
+  }
+
+  const setup = Object.entries(run).filter(([k]) => k !== "simulated_s").map(([k, v]) => [k.replace(/_/g, " "), v === null || v === undefined ? "available when the run ends" : typeof v === "number" ? fmt(v, v < 10 ? 4 : 0) : v]);
+  $("setup").innerHTML = setup.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  const mb = m.mass_balance;
+  $("mass").innerHTML = [["Water at the start", fmt(mb.initial_volume_m3 / 1e6, 3) + " Mm³"], ["Still in the valley", fmt(mb.final_volume_in_domain_m3 / 1e6, 3) + " Mm³"],
+    ["Left the domain downstream", fmt(mb.outflow_volume_m3 / 1e6, 3) + " Mm³"], ["Leaked through boundaries", fmt(mb.lost_volume_m3 / 1e6, 4) + " Mm³"],
+    ["Volume error", fmt(mb.error_pct, 3) + " %"]].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  $("mass-note").textContent = MODEL === "sph"
+    ? "Particle mass is conserved exactly; the error is the change in particle volume (weak compressibility) plus any particle that escaped the terrain."
+    : "Initial volume minus remaining volume minus outflow through the downstream boundary.";
+  const base = `files/results/${MODEL}/`;
+  const files = [["Maximum depth (GeoTIFF)", `gis/${MODEL}_hmax.tif`], ["Maximum velocity (GeoTIFF)", `gis/${MODEL}_vmax.tif`], ["Arrival time (GeoTIFF)", `gis/${MODEL}_arrival_min.tif`],
+    ["Hazard rating (GeoTIFF)", `gis/${MODEL}_hazard_rating.tif`], ["Flood extent (shapefile, zip)", `gis/${MODEL}_flood_extent.shp.zip`], ["Hazard zones (shapefile, zip)", `gis/${MODEL}_hazard.shp.zip`], ["Flood extent (KML)", `gis/${MODEL}_flood_extent.kml`],
+    ["Hazard zones (KML)", `gis/${MODEL}_hazard.kml`], ["All depth/velocity frames (NumPy)", "frames.npz"], ["Metrics (JSON)", "metrics.json"]];
+  const served = location.protocol.startsWith("http");
+  $("files").innerHTML = files.map(([l, f]) => served ? `<a href="${base}${f}">${l}</a>` : `<span>${l}: ${M.gis_dir.replace(/\\gis$/, "")}\\${f.replace("/", "\\")}</span>`).join("");
+
+  legend(); draw();
+})();
+</script>

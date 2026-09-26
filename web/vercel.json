@@ -1,0 +1,28 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/scenarios",
+      "destination": "/api/scenarios.json"
+    },
+    {
+      "source": "/api/jobs",
+      "destination": "/api/jobs.json"
+    },
+    {
+      "source": "/run/:s/api/:f",
+      "destination": "/run/:s/api/:f.json"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/run/(.*)/files/(.*)\\.(tif|zip|kml|json|shp|shx|dbf|prj|cpg)",
+      "headers": [
+        {
+          "key": "Content-Disposition",
+          "value": "attachment"
+        }
+      ]
+    }
+  ]
+}

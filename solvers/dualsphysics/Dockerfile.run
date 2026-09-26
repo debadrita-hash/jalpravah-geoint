@@ -1,0 +1,4 @@
+# Runtime image: DualSPHysics 5.4 CPU + Python (numpy/scipy) for in-volume particle post-processing
+FROM hydrosim/dualsphysics:5.4
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-numpy python3-scipy && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

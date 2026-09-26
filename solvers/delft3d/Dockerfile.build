@@ -1,0 +1,14 @@
+# Compiles the genuine Deltares Delft3D-FLOW 4 engine (tag 5.01.00.2163) from the
+# open-source tree shipped in this repository. Build context = the 5.01.00.2163 folder.
+FROM ubuntu:14.04
+RUN apt-get update && apt-get install -y tclsh libtool autoconf automake build-essential \
+        flex bison gfortran pkg-config libexpat1 libexpat1-dev mpich2 libnetcdf-dev ruby
+ADD src /d3d/src
+WORKDIR /d3d/src
+RUN ./autogen.sh
+RUN CFLAGS='-O2 -fPIC -m64' CXXFLAGS='-O2 -fPIC -m64' FFLAGS='-O2 -fPIC -m64' FCFLAGS='-O2 -fPIC -m64' \
+    ./configure --prefix=/d3d/src
+RUN make ds-install
+ENV LD_LIBRARY_PATH=/d3d/src/lib
+ENV PATH=/d3d/src/bin:$PATH
+RUN ls -la /d3d/src/bin /d3d/src/lib

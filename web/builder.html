@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>JalPravah New Scenario</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="/hydro.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/hydro.js"></script>
+<style>
+  .layout { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  #map { height: 640px; border: 1px solid var(--rule); border-radius: 6px; }
+  form { display: grid; gap: 14px; }
+  fieldset { border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px 14px; display: grid; gap: 10px; margin: 0; background: var(--surface); }
+  legend { font: 600 12px var(--font-head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
+  label { display: grid; gap: 4px; font-size: 13px; color: var(--ink); }
+  label small { color: var(--muted); font-size: 12px; }
+  input, select { font: 14px var(--font-body); padding: 7px 9px; border: 1px solid var(--rule); border-radius: 4px; background: #fff; color: var(--ink); width: 100%; }
+  input:focus, select:focus { outline: 2px solid var(--d3d); outline-offset: 1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .inline { display: flex; gap: 8px; }
+  .inline input { flex: 1; }
+  .btn { font: 600 13px var(--font-head); letter-spacing: .03em; padding: 8px 14px; border-radius: 4px; border: 1px solid var(--rule); background: #fff; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--d3d); color: var(--d3d); }
+  .btn.primary { background: var(--d3d); border-color: var(--d3d); color: #fff; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .results { display: grid; gap: 2px; max-height: 160px; overflow: auto; font-size: 13px; }
+  .results button { text-align: left; background: none; border: 0; padding: 5px 6px; border-radius: 3px; cursor: pointer; color: var(--ink); font: 13px var(--font-body); }
+  .results button:hover { background: #eef3f5; }
+  .picked { font: 500 13px var(--font-mono); color: var(--d3d); }
+  .msg { font-size: 13px; min-height: 1em; margin: 0; }
+  .msg.err { color: var(--bad); } .msg.ok { color: var(--ok); }
+  pre.log { max-height: 260px; overflow: auto; background: #0f1a20; color: #d6e2e6; font: 12px/1.5 var(--font-mono); padding: 10px 12px; border-radius: 4px; white-space: pre-wrap; margin: 0; }
+  .hidden-row[hidden] { display: none !important; }
+</style>
+
+<header class="appbar">
+  <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="/">Scenarios</a>
+    <a href="/builder" class="here">New scenario</a>
+    <a href="/satellite">Satellite flood mapping</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="pagehead"><div><span class="eyebrow">Scenario builder · open DEM, imagery and OpenStreetMap</span><h1>New scenario</h1><p class="lede">Building a scenario downloads the Copernicus GLO-30 DEM and Sentinel-2 imagery for the chosen dam,
+derives the reservoir and Froehlich breach, and prepares both solver cases. Running it takes hours of CPU in Docker
+(DualSPHysics and Delft3D-FLOW), so it is done on the JalPravah workstation, not on this web host.</p>
+<p class="lede">On the workstation: <b>python jalpravah.py</b>, then open <b>New scenario</b> at http://localhost:8765/.</p></div></div>
+  <p><a class="btn primary" href="/" style="font:600 13px var(--font-head);padding:8px 14px;border-radius:4px;background:var(--d3d);color:#fff;text-decoration:none;display:inline-block">Open the finished scenarios</a></p>
+</div>

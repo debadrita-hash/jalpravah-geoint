@@ -1,0 +1,8 @@
+web/** -text
+*.png binary
+*.bin binary
+*.tif binary
+*.shp binary
+*.shx binary
+*.dbf binary
+*.zip binary

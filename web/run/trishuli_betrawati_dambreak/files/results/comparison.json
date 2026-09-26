@@ -1,0 +1,435 @@
+{
+ "agreement": {
+  "wet_threshold_m": 0.1,
+  "area_both_km2": 1.8432000000000002,
+  "area_sph_only_km2": 0.134,
+  "area_delft3d_only_km2": 6.6892000000000005,
+  "critical_success_index": 0.21268346718360565,
+  "hit_rate": 0.21602362758426702,
+  "false_alarm_ratio": 0.06777260772810034,
+  "area_bias": 0.23172847030143923,
+  "hmax_mean_difference_m": -5.723574161529541,
+  "hmax_rmse_m": 9.607542991638184,
+  "hmax_correlation": 0.390857834942594,
+  "vmax_mean_difference_ms": -5.832131385803223,
+  "arrival_mean_difference_min": 19.915546802594996
+ },
+ "summary_rows": [
+  {
+   "key": "breach_peak_discharge_m3s",
+   "label": "Peak discharge at the breach",
+   "unit": "m\u00b3/s",
+   "decimals": 0,
+   "sph": 20453.709971758548,
+   "delft3d": 41509.9717611535,
+   "difference": -21056.261789394954,
+   "relative_pct": -50.72579164965886
+  },
+  {
+   "key": "breach_time_to_peak_min",
+   "label": "Time to breach peak",
+   "unit": "min",
+   "decimals": 1,
+   "sph": 1.0,
+   "delft3d": 1.4999999664723873,
+   "difference": -0.4999999664723873,
+   "relative_pct": -33.33333184321718
+  },
+  {
+   "key": "flooded_area_km2",
+   "label": "Flooded area",
+   "unit": "km\u00b2",
+   "decimals": 2,
+   "sph": 1.9772,
+   "delft3d": 8.5324,
+   "difference": -6.555200000000001,
+   "relative_pct": -76.82715296985609
+  },
+  {
+   "key": "max_depth_m",
+   "label": "Maximum flow depth",
+   "unit": "m",
+   "decimals": 1,
+   "sph": 38.884056091308594,
+   "delft3d": 33.66197967529297,
+   "difference": 5.222076416015625,
+   "relative_pct": 15.513277788140593
+  },
+  {
+   "key": "max_velocity_ms",
+   "label": "Maximum velocity",
+   "unit": "m/s",
+   "decimals": 1,
+   "sph": 21.530149459838867,
+   "delft3d": 25.684778213500977,
+   "difference": -4.154628753662109,
+   "relative_pct": -16.175451152925532
+  },
+  {
+   "key": "max_front_distance_km",
+   "label": "Flood front reach",
+   "unit": "km",
+   "decimals": 1,
+   "sph": 10.477839097292614,
+   "delft3d": 29.984949151521914,
+   "difference": -19.5071100542293,
+   "relative_pct": -65.05633861726659
+  },
+  {
+   "key": "arrival_10km_min",
+   "label": "Arrival at 10 km",
+   "unit": "min",
+   "decimals": 1,
+   "sph": 92.0,
+   "delft3d": 16.0,
+   "difference": 76.0,
+   "relative_pct": 475.0
+  },
+  {
+   "key": "arrival_25km_min",
+   "label": "Arrival at 25 km",
+   "unit": "min",
+   "decimals": 1,
+   "sph": null,
+   "delft3d": 56.0,
+   "difference": null,
+   "relative_pct": null
+  },
+  {
+   "key": "peak_q_10km_m3s",
+   "label": "Peak discharge at 10 km",
+   "unit": "m\u00b3/s",
+   "decimals": 0,
+   "sph": 634.2000383903227,
+   "delft3d": 20325.133787635477,
+   "difference": -19690.933749245156,
+   "relative_pct": -96.87972514711747
+  },
+  {
+   "key": "buildings",
+   "label": "Buildings reached",
+   "unit": "count",
+   "decimals": 0,
+   "sph": 22.0,
+   "delft3d": 185.0,
+   "difference": -163.0,
+   "relative_pct": -88.10810810810811
+  },
+  {
+   "key": "buildings_destroyed",
+   "label": "Buildings destroyed (Clausen & Clark)",
+   "unit": "count",
+   "decimals": 0,
+   "sph": 3.0,
+   "delft3d": 64.0,
+   "difference": -61.0,
+   "relative_pct": -95.3125
+  },
+  {
+   "key": "roads_km",
+   "label": "Roads flooded",
+   "unit": "km",
+   "decimals": 1,
+   "sph": 3.51,
+   "delft3d": 28.13,
+   "difference": -24.619999999999997,
+   "relative_pct": -87.52221827230713
+  },
+  {
+   "key": "extreme_hazard_km2",
+   "label": "Area at extreme hazard",
+   "unit": "km\u00b2",
+   "decimals": 2,
+   "sph": 1.74,
+   "delft3d": 8.0632,
+   "difference": -6.3232,
+   "relative_pct": -78.42047822204583
+  }
+ ],
+ "stations": [
+  {
+   "name": "Breach outlet",
+   "chainage_km": 0.15,
+   "peak_discharge_m3s": {
+    "sph": 20453.709971758548,
+    "delft3d": 41509.9717611535,
+    "difference": -21056.261789394954
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 1.0,
+    "delft3d": 1.4999999664723873,
+    "difference": -0.4999999664723873
+   },
+   "peak_depth_m": {
+    "sph": 35.38615798950195,
+    "delft3d": 27.318347930908203,
+    "difference": 8.06781005859375
+   },
+   "arrival_time_min": {
+    "sph": 0.5,
+    "delft3d": 0.5,
+    "difference": 0.0
+   },
+   "passed_volume_Mm3": {
+    "sph": 17.0813518778547,
+    "delft3d": 30.138292,
+    "difference": -13.0569401221453
+   }
+  },
+  {
+   "name": "S1 (0.5 km)",
+   "chainage_km": 0.5,
+   "peak_discharge_m3s": {
+    "sph": 18237.580894533257,
+    "delft3d": 39175.8508756485,
+    "difference": -20938.269981115245
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 1.5,
+    "delft3d": 2.4999999441206455,
+    "difference": -0.9999999441206455
+   },
+   "peak_depth_m": {
+    "sph": 31.455116271972656,
+    "delft3d": 26.07052230834961,
+    "difference": 5.384593963623047
+   },
+   "arrival_time_min": {
+    "sph": 1.0,
+    "delft3d": 0.5,
+    "difference": 0.5
+   },
+   "passed_volume_Mm3": {
+    "sph": 16.556844280610818,
+    "delft3d": 30.133514,
+    "difference": -13.576669719389184
+   }
+  },
+  {
+   "name": "S2 (2 km)",
+   "chainage_km": 2.0,
+   "peak_discharge_m3s": {
+    "sph": 7555.471198434989,
+    "delft3d": 33121.017406979096,
+    "difference": -25565.546208544107
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 12.0,
+    "delft3d": 4.999999888241291,
+    "difference": 7.000000111758709
+   },
+   "peak_depth_m": {
+    "sph": 29.410846710205078,
+    "delft3d": 32.41722106933594,
+    "difference": -3.0063743591308594
+   },
+   "arrival_time_min": {
+    "sph": 4.0,
+    "delft3d": 2.5,
+    "difference": 1.5
+   },
+   "passed_volume_Mm3": {
+    "sph": 12.293666808007385,
+    "delft3d": 30.100076,
+    "difference": -17.806409191992614
+   }
+  },
+  {
+   "name": "S3 (5 km)",
+   "chainage_km": 5.0,
+   "peak_discharge_m3s": {
+    "sph": 6281.035494346053,
+    "delft3d": 28777.217309887597,
+    "difference": -22496.181815541546
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 27.0,
+    "delft3d": 10.499999765306711,
+    "difference": 16.50000023469329
+   },
+   "peak_depth_m": {
+    "sph": 28.000511169433594,
+    "delft3d": 20.548500061035156,
+    "difference": 7.4520111083984375
+   },
+   "arrival_time_min": {
+    "sph": 19.0,
+    "delft3d": 7.0,
+    "difference": 12.0
+   },
+   "passed_volume_Mm3": {
+    "sph": 7.898390145714542,
+    "delft3d": 29.773543,
+    "difference": -21.87515285428546
+   }
+  },
+  {
+   "name": "S4 (10 km)",
+   "chainage_km": 10.0,
+   "peak_discharge_m3s": {
+    "sph": 634.2000383903227,
+    "delft3d": 20325.133787635477,
+    "difference": -19690.933749245156
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 94.5,
+    "delft3d": 21.99999950826168,
+    "difference": 72.50000049173832
+   },
+   "peak_depth_m": {
+    "sph": 27.093345642089844,
+    "delft3d": 24.065414428710938,
+    "difference": 3.0279312133789062
+   },
+   "arrival_time_min": {
+    "sph": 92.0,
+    "delft3d": 16.0,
+    "difference": 76.0
+   },
+   "passed_volume_Mm3": {
+    "sph": 0.15217846215505612,
+    "delft3d": 29.495468,
+    "difference": -29.343289537844942
+   }
+  },
+  {
+   "name": "S5 (15 km)",
+   "chainage_km": 15.0,
+   "peak_discharge_m3s": {
+    "sph": 0.0,
+    "delft3d": 15644.35034967848,
+    "difference": -15644.35034967848
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 0.0,
+    "delft3d": 34.49999922886491,
+    "difference": -34.49999922886491
+   },
+   "peak_depth_m": {
+    "sph": 0.0,
+    "delft3d": 17.726238250732422,
+    "difference": -17.726238250732422
+   },
+   "arrival_time_min": {
+    "sph": null,
+    "delft3d": 26.0,
+    "difference": null
+   },
+   "passed_volume_Mm3": {
+    "sph": 0.0,
+    "delft3d": 28.92554,
+    "difference": -28.92554
+   }
+  },
+  {
+   "name": "S6 (20 km)",
+   "chainage_km": 20.0,
+   "peak_discharge_m3s": {
+    "sph": 0.0,
+    "delft3d": 11718.600261931128,
+    "difference": -11718.600261931128
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 0.0,
+    "delft3d": 49.49999889358878,
+    "difference": -49.49999889358878
+   },
+   "peak_depth_m": {
+    "sph": 0.0,
+    "delft3d": 12.130321502685547,
+    "difference": -12.130321502685547
+   },
+   "arrival_time_min": {
+    "sph": null,
+    "delft3d": 39.0,
+    "difference": null
+   },
+   "passed_volume_Mm3": {
+    "sph": 0.0,
+    "delft3d": 27.696203,
+    "difference": -27.696203
+   }
+  },
+  {
+   "name": "S7 (25 km)",
+   "chainage_km": 25.0,
+   "peak_discharge_m3s": {
+    "sph": 0.0,
+    "delft3d": 8279.583518396446,
+    "difference": -8279.583518396446
+   },
+   "time_of_peak_discharge_min": {
+    "sph": 0.0,
+    "delft3d": 71.99999839067459,
+    "difference": -71.99999839067459
+   },
+   "peak_depth_m": {
+    "sph": 0.0,
+    "delft3d": 10.453834533691406,
+    "difference": -10.453834533691406
+   },
+   "arrival_time_min": {
+    "sph": null,
+    "delft3d": 56.0,
+    "difference": null
+   },
+   "passed_volume_Mm3": {
+    "sph": 0.0,
+    "delft3d": 25.332755,
+    "difference": -25.332755
+   }
+  }
+ ],
+ "reading": [
+  "Peak breach discharge is 20,454 m\u00b3/s in SPH and 41,510 m\u00b3/s in Delft3D (51 % lower in SPH). SPH resolves the vertical acceleration through the notch in 3-D; Delft3D assumes hydrostatic pressure in a single depth-averaged layer.",
+  "Between S1 (0.5 km) and S4 (10 km) the flood peak attenuates by 97 % in SPH and 48 % in Delft3D. Delft3D dissipates energy through Manning bed friction (n = 0.045); SPH has no bed-friction law and loses energy only through artificial viscosity and the particle boundary.",
+  "At S4 (10 km) the flood arrives 76.0 min later in SPH (92.0 vs 16.0 min).",
+  "The two maximum-extent maps give a critical success index of 0.21 (1 = identical). 0.13 km\u00b2 is flooded only in SPH and 6.69 km\u00b2 only in Delft3D.",
+  "Resolution differs by design: SPH uses 12 m particles, the finest spacing this laptop can run for the whole event, so a thin flood layer is only one or two particles deep, while Delft3D computes on 20 m cells. Shallow floodplain edges are therefore the least reliable part of the SPH map."
+ ],
+ "run": {
+  "sph": {
+   "solver": "DualSPHysics 5.4 CPU (OpenMP), 3-D weakly compressible SPH",
+   "particle_spacing_m": 12.0,
+   "smoothing_length_m": 20.78,
+   "fluid_particles": 16442,
+   "boundary_particles": 331723,
+   "kernel": "Wendland C2",
+   "viscosity": "artificial, alpha = 0.01",
+   "boundary": "DBC, 2 layers",
+   "density_diffusion": "fourtakas",
+   "speed_of_sound_ms": 187.9255198210184,
+   "time_step_s": "variable (CFL 0.20)",
+   "steps": null,
+   "wall_clock_s": 43724.105469,
+   "simulated_s": 9000.0
+  },
+  "delft3d": {
+   "solver": "Delft3D-FLOW 4 (Deltares, source tag 5.01.00.2163), depth-averaged, kmax=1",
+   "grid": "1288 x 376 rectilinear, 20 m",
+   "active_cells": 50480,
+   "time_step_s": 0.6,
+   "roughness": "Manning n = 0.045",
+   "advection": "Flood",
+   "wall_clock_s": 11421.782476902008,
+   "simulated_s": 10799.999758601189
+  }
+ },
+ "mass_balance": {
+  "sph": {
+   "initial_volume_m3": 28348656.502998102,
+   "final_volume_in_domain_m3": 28435818.453887597,
+   "outflow_volume_m3": 0.0,
+   "lost_volume_m3": 0.0,
+   "error_pct": -0.30746413284268403
+  },
+  "delft3d": {
+   "initial_volume_m3": 30203424.0,
+   "final_volume_in_domain_m3": 8626052.0,
+   "outflow_volume_m3": 21577302.460468244,
+   "lost_volume_m3": 0.0,
+   "error_pct": 0.00023023724646646833
+  }
+ },
+ "common_window_min": 150.0
+}

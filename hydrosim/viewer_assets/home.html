@@ -1,0 +1,152 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>JalPravah</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/hydro.css">
+<script src="/hydro.js"></script>
+<style>
+  .sc-card { display: grid; gap: 10px; align-content: start; padding: 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
+  .sc-card h2 a { color: var(--ink); text-decoration: none; }
+  .sc-card h2 a:hover { color: var(--d3d); }
+  .sc-card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .sc-facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--muted); }
+  .sc-facts b { color: var(--ink); font: 500 12.5px var(--font-mono); }
+  .runrow { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+  .runrow .lbl { font: 600 12px var(--font-head); letter-spacing: .05em; text-transform: uppercase; }
+  .runrow .lbl.sph { color: var(--sph); } .runrow .lbl.d3d { color: var(--d3d); }
+  .runrow .bar { height: 6px; }
+  .runrow small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+  .btn { font: 600 12.5px var(--font-head); letter-spacing: .03em; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn:hover { border-color: var(--d3d); color: var(--d3d); }
+  .btn.primary { background: var(--d3d); border-color: var(--d3d); color: #fff; }
+  .btn.primary:hover { background: #0c5a64; color: #fff; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .jobs { display: grid; gap: 0; }
+  .job { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+  .job:last-child { border-bottom: 0; }
+  .state { font: 600 11.5px var(--font-head); letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+  .state.running { color: var(--warn); } .state.finished, .state.complete { color: var(--ok); } .state.failed { color: var(--bad); } .state.detached { color: var(--muted); }
+  pre.log { max-height: 260px; overflow: auto; background: #0f1a20; color: #d6e2e6; font: 12px/1.5 var(--font-mono); padding: 10px 12px; border-radius: 4px; white-space: pre-wrap; margin: 0; }
+  .msg { font-size: 13px; color: var(--bad); min-height: 1em; }
+  .btn.danger { color: var(--bad); border-color: #e7c3bd; }
+  .btn.danger:hover { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .btn.quiet { border-color: transparent; color: var(--muted); }
+  .btn.quiet:hover { color: var(--bad); border-color: #e7c3bd; }
+  .confirm { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid #e7c3bd; background: #fdf4f2; border-radius: 4px; font-size: 13px; }
+  .confirm[hidden] { display: none; }
+  .actions .spacer { flex: 1; }
+  .jobbtns { display: flex; gap: 6px; }
+</style>
+
+<header class="appbar">
+  <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
+  <nav class="tabs" aria-label="Sections">
+    <a href="/" class="here">Scenarios</a>
+    <a href="/builder">New scenario</a>
+    <a href="/satellite">Satellite flood mapping</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div class="pagehead">
+    <div>
+      <span class="eyebrow">Dam-break and flash-flood simulation for disaster response</span>
+      <h1>Scenarios</h1>
+      <p class="lede">Each scenario is built from open terrain data and simulated independently with DualSPHysics (SPH) and Deltares Delft3D-FLOW. Open one to see the flood, the damage estimate and the comparison of the two models.</p>
+    </div>
+    <a class="btn primary" href="/builder">New scenario</a>
+  </div>
+  <p class="msg" id="msg" role="status"></p>
+  <div class="cards" id="cards"><p class="note">Loading scenarios…</p></div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Background jobs</h2><p>Scenario builds, simulations and satellite analyses started from JalPravah.</p></div>
+    <div class="jobs" id="jobs"></div>
+    <pre class="log" id="log" hidden></pre>
+  </section>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id), fmt = Hydro.fmt;
+  const label = { running: "running", complete: "complete", analysing: "analysing", stopped: "stopped", failed: "failed", "not run": "not run" };
+  async function post(url, body) {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+  }
+  function row(key, cls, name, st) {
+    const pct = st.planned_s ? Math.min(100, 100 * st.simulated_s / st.planned_s) : 0;
+    const canRun = !st.running && st.state !== "analysing";
+    const txt = st.state === "running" ? `${fmt(st.simulated_s / 60, 1)} / ${fmt(st.planned_s / 60, 0)} min${st.eta ? " · done ≈ " + st.eta : ""}`
+      : st.state === "complete" ? `complete · ${fmt(st.simulated_s / 60, 0)} min` : label[st.state] || st.state;
+    return `<div class="runrow"><span class="lbl ${cls}">${key === "sph" ? "SPH" : "Delft3D"}</span>
+      <div><div class="bar" style="--c:var(--${cls === "sph" ? "sph" : "d3d"})"><i style="width:${pct}%"></i></div><small>${txt}</small></div>
+      <button class="btn" data-run="${key}" data-sc="${name}" ${canRun ? "" : "disabled"}>${st.state === "complete" ? "Re-run" : "Run"}</button></div>`;
+  }
+  let pause = false;
+  async function load() {
+    if (pause) return;
+    try {
+      const list = await (await fetch("/api/scenarios")).json();
+      $("cards").innerHTML = list.map((s) => `<div class="sc-card">
+        <span class="eyebrow">${s.type === "blockage" ? "Landslide dam / river blockage" : "Dam break"} · ${fmt(s.lat, 4)} N, ${fmt(s.lon, 4)} E</span>
+        <h2><a href="/run/${s.name}/">${s.title}</a></h2>
+        <p>${s.description}</p>
+        <div class="sc-facts"><span>Dam <b>${fmt(s.dam.height_m, 0)} m</b></span><span>Reservoir <b>${fmt(s.reservoir_Mm3, 2)} Mm³</b></span><span>River simulated <b>${fmt(s.reach_km, 0)} km</b></span></div>
+        ${row("delft3d", "d3d", s.name, s.status.delft3d)}${row("sph", "sph", s.name, s.status.sph)}
+        <div class="actions"><a class="btn primary" href="/run/${s.name}/">Open results</a><a class="btn" href="/run/${s.name}/comparison.html">Compare models</a>
+          <span class="spacer"></span><button class="btn quiet" type="button" data-del="${s.name}" ${s.status.delft3d.running || s.status.sph.running ? 'disabled title="Available when the running simulation has finished"' : ""}>Delete scenario</button></div>
+        <div class="confirm" id="confirm-${s.name}" hidden>
+          <span id="confirm-text-${s.name}">Checking size…</span>
+          <span class="actions"><button class="btn danger" type="button" data-delok="${s.name}">Delete permanently</button><button class="btn" type="button" data-delno="${s.name}">Keep</button></span>
+        </div>
+      </div>`).join("") || `<p class="note">No scenarios yet. Create one with New scenario.</p>`;
+      document.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
+        const n = b.dataset.del, box = $("confirm-" + n), sc = list.find((x) => x.name === n);
+        box.hidden = false; pause = true;
+        const size = await (await fetch("/api/scenarios/size?name=" + encodeURIComponent(n))).json();
+        const gb = size.bytes > 1e9 ? fmt(size.bytes / 1e9, 2) + " GB" : fmt(size.bytes / 1e6, 0) + " MB";
+        $("confirm-text-" + n).innerHTML = `Delete <b>${sc.title}</b> with all its inputs, meshes and results (${gb} on D:)? This cannot be undone.`;
+      }));
+      document.querySelectorAll("[data-delno]").forEach((b) => b.addEventListener("click", () => { $("confirm-" + b.dataset.delno).hidden = true; pause = false; }));
+      document.querySelectorAll("[data-delok]").forEach((b) => b.addEventListener("click", async () => {
+        b.disabled = true;
+        try { const r = await post("/api/scenarios/delete", { scenario: b.dataset.delok }); $("msg").style.color = "var(--ok)"; $("msg").textContent = r.message + "."; }
+        catch (e) { $("msg").style.color = "var(--bad)"; $("msg").textContent = e.message; }
+        pause = false; load(); loadJobs();
+      }));
+      document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", async () => {
+        b.disabled = true; $("msg").textContent = "";
+        try { await post("/api/run", { scenario: b.dataset.sc, model: b.dataset.run }); $("msg").style.color = "var(--ok)"; $("msg").textContent = "Simulation started. Progress appears below and on the card."; loadJobs(); }
+        catch (e) { $("msg").style.color = "var(--bad)"; $("msg").textContent = e.message; b.disabled = false; }
+      }));
+    } catch (e) { $("cards").innerHTML = `<p class="note">Could not read the scenario list: ${e.message}</p>`; }
+  }
+  let openLog = null;
+  async function loadJobs() {
+    const jobs = await (await fetch("/api/jobs")).json();
+    $("jobs").innerHTML = jobs.slice(0, 20).map((j) => `<div class="job"><span>${j.title}<br><span class="muted" style="font-size:12px">${(j.started || j.queued || "").replace("T", " ")}</span></span>
+      <span class="state ${j.state}">${j.state}</span>
+      <span class="jobbtns">${j.log ? `<button class="btn" type="button" data-log="${j.id}">Log</button>` : ""}${j.state === "running" ? "" : `<button class="btn quiet" type="button" data-jdel="${j.id}">${j.state === "queued" ? "Cancel" : "Delete"}</button>`}</span></div>`).join("") || `<p class="note">No jobs.</p>`;
+    document.querySelectorAll("[data-log]").forEach((b) => b.addEventListener("click", () => { openLog = openLog === b.dataset.log ? null : b.dataset.log; showLog(); }));
+    document.querySelectorAll("[data-jdel]").forEach((b) => b.addEventListener("click", async () => {
+      b.disabled = true;
+      try { await post("/api/jobs/delete", { id: b.dataset.jdel }); if (openLog === b.dataset.jdel) openLog = null; }
+      catch (e) { $("msg").style.color = "var(--bad)"; $("msg").textContent = e.message; }
+      loadJobs();
+    }));
+    showLog();
+  }
+  async function showLog() {
+    if (!openLog) { $("log").hidden = true; return; }
+    $("log").hidden = false; $("log").textContent = await (await fetch(`/api/jobs/${openLog}/log`)).text() || "(no output yet)";
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+  load(); loadJobs();
+  setInterval(load, 30000); setInterval(loadJobs, 8000);
+})();
+</script>

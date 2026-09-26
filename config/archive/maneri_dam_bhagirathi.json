@@ -1,0 +1,93 @@
+{
+  "name": "maneri_dam_bhagirathi",
+  "description": "Constructed dam failure at Maneri dam Bhagirathi (30.7392 N, 78.5287 E), 39 m high, routed 30 km downstream.",
+  "inputs": {
+    "dem": "D:\\delft3d\\hydrosim\\runs\\maneri_dam_bhagirathi\\inputs\\dem.tif",
+    "satellite": "D:\\delft3d\\hydrosim\\runs\\maneri_dam_bhagirathi\\inputs\\sentinel2_rgb.tif"
+  },
+  "crs": "EPSG:32644",
+  "dam": {
+    "lon": 78.528737,
+    "lat": 30.7392362,
+    "height_m": 39.0,
+    "crest_width_m": 20.0,
+    "upstream_slope_h_per_v": 2.0,
+    "downstream_slope_h_per_v": 2.0,
+    "siting_search_m": 0.0,
+    "type": "dam",
+    "label": "Maneri dam Bhagirathi"
+  },
+  "breach": {
+    "method": "froehlich2008",
+    "failure_mode": "overtopping",
+    "side_slope_h_per_v": 1.0,
+    "timing": "instantaneous"
+  },
+  "domain": {
+    "reach_length_km": 30.0,
+    "upstream_buffer_km": 1.0,
+    "margin_above_thalweg_m": 45.0,
+    "max_lateral_distance_m": 1500.0,
+    "terrain_resolution_m": 10.0
+  },
+  "simulation": {
+    "duration_s": 10800.0,
+    "output_interval_s": 30.0,
+    "wet_threshold_m": 0.1,
+    "arrival_threshold_m": 0.5,
+    "stations_km": [
+      0.5,
+      2,
+      5,
+      10,
+      15,
+      20,
+      25
+    ]
+  },
+  "delft3d": {
+    "cell_size_m": 30.0,
+    "time_step_s": 0.75,
+    "manning_n": 0.045,
+    "horizontal_eddy_viscosity": 1.0,
+    "dry_threshold_m": 0.05,
+    "advection_scheme": "Flood"
+  },
+  "sph": {
+    "dp_m": 12.0,
+    "coefh": 1.0,
+    "coefsound": 10.0,
+    "cfl": 0.2,
+    "kernel": "wendland",
+    "viscosity_artificial": 0.01,
+    "visco_bound_factor": 1.0,
+    "density_diffusion": "fourtakas",
+    "density_diffusion_value": 0.1,
+    "boundary_layers": 2,
+    "gate_lift_speed_ms": 40.0,
+    "threads": 10,
+    "duration_s": 5400.0,
+    "output_interval_s": 30.0,
+    "max_duration_s": 21600.0
+  },
+  "provenance": {
+    "dem": {
+      "source": "Copernicus GLO-30 (AWS open data)",
+      "tiles": [
+        "Copernicus_DSM_COG_10_N30_00_E078_00_DEM",
+        "Copernicus_DSM_COG_10_N31_00_E078_00_DEM"
+      ],
+      "shape": [
+        2335,
+        2717
+      ]
+    },
+    "imagery": {
+      "source": "Sentinel-2 L2A true colour (Earth Search, AWS open data)",
+      "scene": "S2B_44RKV_20260518_0_L2A",
+      "date": "2026-05-18",
+      "cloud_pct": 0.022253
+    }
+  },
+  "title": "Maneri dam, Bhagirathi (Uttarakhand)"
+}
