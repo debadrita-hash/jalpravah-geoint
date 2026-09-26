@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/hydro.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="/hydro.js"></script>
+<script src="/jp-remote.js" defer></script>
 <style>
   .layout { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 20px; align-items: start; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
@@ -47,9 +48,172 @@
 </header>
 
 <div class="wrap">
-  <div class="pagehead"><div><span class="eyebrow">Scenario builder · open DEM, imagery and OpenStreetMap</span><h1>New scenario</h1><p class="lede">Building a scenario downloads the Copernicus GLO-30 DEM and Sentinel-2 imagery for the chosen dam,
-derives the reservoir and Froehlich breach, and prepares both solver cases. Running it takes hours of CPU in Docker
-(DualSPHysics and Delft3D-FLOW), so it is done on the JalPravah workstation, not on this web host.</p>
-<p class="lede">On the workstation: <b>python jalpravah.py</b>, then open <b>New scenario</b> at http://localhost:8765/.</p></div></div>
-  <p><a class="btn primary" href="/" style="font:600 13px var(--font-head);padding:8px 14px;border-radius:4px;background:var(--d3d);color:#fff;text-decoration:none;display:inline-block">Open the finished scenarios</a></p>
+  <div class="pagehead">
+    <div>
+      <span class="eyebrow">Any river in India or elsewhere</span>
+      <h1>New scenario</h1>
+      <p class="lede">Choose the dam or landslide blockage, and JalPravah downloads the open terrain and imagery, derives the reservoir and breach, and prepares both models. Then start either simulation.</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <form id="form" novalidate>
+      <fieldset>
+        <legend>1 · Location</legend>
+        <label for="q">Find a place or dam
+          <span class="inline"><input id="q" placeholder="e.g. Tehri, Uttarakhand" autocomplete="off"><button class="btn" type="button" id="search">Search</button></span>
+        </label>
+        <div class="results" id="places"></div>
+        <button class="btn" type="button" id="dams">Show dams in this map view (OpenStreetMap)</button>
+        <div class="results" id="damlist"></div>
+        <p class="note">Or click the river on the map where the dam or blockage stands.</p>
+        <p class="picked" id="picked">No location selected</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>2 · Dam</legend>
+        <label for="name">Scenario name<input id="name" required placeholder="e.g. Maneri dam, Bhagirathi"></label>
+        <label for="dtype">Type
+          <select id="dtype"><option value="dam">Constructed dam (embankment / concrete)</option><option value="blockage">Landslide dam / river blockage</option></select>
+        </label>
+        <div class="row2">
+          <label for="height">Height above river bed, m<input id="height" type="number" min="3" max="300" step="1" value="40"></label>
+          <label for="siting">Placement
+            <select id="siting"><option value="0">Exactly here</option><option value="1500">Narrowest section within 1.5 km downstream</option></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>3 · Input data</legend>
+        <label for="dem">Terrain (DEM)
+          <select id="dem"><option value="copernicus">Copernicus GLO-30, downloaded automatically</option><option value="file">GeoTIFF on this computer</option></select>
+        </label>
+        <label class="hidden-row" id="demrow" hidden for="dempath">DEM file path<input id="dempath" placeholder="D:\data\dem.tif"></label>
+        <label for="img">Imagery for the maps
+          <select id="img"><option value="sentinel2">Sentinel-2, least-cloudy scene of the last year</option><option value="file">GeoTIFF on this computer</option><option value="none">None (shaded relief)</option></select>
+        </label>
+        <label class="hidden-row" id="imgrow" hidden for="imgpath">Imagery file path<input id="imgpath" placeholder="D:\data\image.tif"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>4 · Simulation</legend>
+        <div class="row2">
+          <label for="reach">River length simulated, km<input id="reach" type="number" min="5" max="80" step="1" value="30"></label>
+          <label for="dur">Flood duration, h<input id="dur" type="number" min="0.5" max="12" step="0.5" value="3"></label>
+        </div>
+        <div class="row2">
+          <label for="cell">Delft3D cell size
+            <select id="cell"><option value="30">30 m (DEM resolution)</option><option value="20">20 m</option></select>
+          </label>
+          <label for="dp">SPH particle spacing
+            <select id="dp"><option value="12">12 m</option><option value="10">10 m (slower)</option><option value="15">15 m (faster)</option></select>
+          </label>
+        </div>
+        <label for="n">Manning roughness n (Delft3D)<input id="n" type="number" min="0.02" max="0.12" step="0.005" value="0.045"><small>Mountain river with boulders: 0.04–0.05</small></label>
+      </fieldset>
+
+      <button class="btn primary" type="submit" id="build">Build scenario</button>
+      <p class="msg" id="msg" role="status"></p>
+      <pre class="log" id="log" hidden></pre>
+      <div id="after" hidden class="actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </form>
+    <div id="map" role="application" aria-label="Map for choosing the dam location"></div>
+  </div>
 </div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const map = L.map("map").setView([30.3, 79.0], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap contributors" }).addTo(map);
+  let pick = null, marker = null, damLayer = L.layerGroup().addTo(map);
+  function setPick(lat, lon, name) {
+    pick = { lat, lon };
+    if (marker) marker.remove();
+    marker = L.circleMarker([lat, lon], { radius: 9, color: "#8c3321", weight: 3, fillColor: "#f5b82e", fillOpacity: 0.9 }).addTo(map);
+    $("picked").textContent = `${lat.toFixed(5)} N, ${lon.toFixed(5)} E${name ? " · " + name : ""}`;
+    if (name && !$("name").value) $("name").value = name;
+  }
+  map.on("click", (e) => setPick(e.latlng.lat, e.latlng.lng));
+  const say = (t, cls) => { $("msg").textContent = t; $("msg").className = "msg " + (cls || ""); };
+
+  $("search").addEventListener("click", async () => {
+    const q = $("q").value.trim(); if (!q) return;
+    $("places").textContent = "Searching…";
+    try {
+      const r = await (await fetch("/api/geocode?q=" + encodeURIComponent(q))).json();
+      if (r.error) throw new Error(r.error);
+      $("places").innerHTML = r.map((p, i) => `<button type="button" data-i="${i}">${p.name}</button>`).join("") || "No match.";
+      $("places").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { const p = r[+b.dataset.i]; map.setView([p.lat, p.lon], 13); }));
+    } catch (e) { $("places").textContent = e.message; }
+  });
+  $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("search").click(); } });
+
+  $("dams").addEventListener("click", async () => {
+    if (map.getZoom() < 9) { $("damlist").textContent = "Zoom in further (the search covers the visible map)."; return; }
+    const b = map.getBounds(); $("damlist").textContent = "Searching OpenStreetMap… (up to a minute when its servers are busy)"; damLayer.clearLayers();
+    try {
+      const r = await (await fetch(`/api/dams?bbox=${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`)).json();
+      if (r.error) throw new Error(r.error);
+      r.forEach((d) => L.circleMarker([d.lat, d.lon], { radius: 6, color: "#11707c", weight: 2, fillOpacity: 0.7 }).bindTooltip(d.name || d.kind).on("click", () => setPick(d.lat, d.lon, d.name)).addTo(damLayer));
+      $("damlist").innerHTML = r.map((d, i) => `<button type="button" data-i="${i}">${d.name || "Unnamed " + d.kind} <span class="muted">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}${d.height ? " · " + d.height + " m" : ""}</span></button>`).join("") || "No dams mapped here.";
+      $("damlist").querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => { const d = r[+btn.dataset.i]; setPick(d.lat, d.lon, d.name); map.setView([d.lat, d.lon], 14); }));
+    } catch (e) { $("damlist").textContent = e.message; }
+  });
+  $("dem").addEventListener("change", () => { $("demrow").hidden = $("dem").value !== "file"; });
+  $("img").addEventListener("change", () => { $("imgrow").hidden = $("img").value !== "file"; });
+
+  let job = null, timer = null;
+  // pick up a build that is already running or queued (started earlier or from another tab)
+  fetch("/api/jobs").then((r) => r.json()).then((all) => {
+    const b = all.find((j) => j.kind === "build" && (j.state === "running" || j.state === "queued"));
+    if (b) { job = b.id; $("log").hidden = false; poll(); }
+  });
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!pick) return say("Choose the dam location first (search, pick a dam, or click the river).", "err");
+    if (!$("name").value.trim()) return say("Give the scenario a name.", "err");
+    if ($("dem").value === "file" && !$("dempath").value.trim()) return say("Enter the DEM file path.", "err");
+    const body = { name: $("name").value.trim(), lat: pick.lat, lon: pick.lon, dam_type: $("dtype").value, height_m: +$("height").value,
+      siting_search_m: +$("siting").value, reach_km: +$("reach").value, duration_h: +$("dur").value, cell_m: +$("cell").value,
+      sph_dp_m: +$("dp").value, manning_n: +$("n").value, dem_source: $("dem").value, dem_path: $("dempath").value.trim(),
+      imagery_source: $("img").value, imagery_path: $("imgpath").value.trim() };
+    $("build").disabled = true; say("Starting the build…");
+    try {
+      const r = await fetch("/api/scenarios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error);
+      job = j.id; $("log").hidden = false; $("after").hidden = true; poll();
+    } catch (err) { say(err.message, "err"); $("build").disabled = false; }
+  });
+  async function poll() {
+    clearTimeout(timer);
+    const txt = await (await fetch(`/api/jobs/${job}/log`)).text();
+    $("log").textContent = txt; $("log").scrollTop = $("log").scrollHeight;
+    const all = await (await fetch("/api/jobs")).json(), st = all.find((j) => j.id === job);
+    if (st && st.state === "queued") {
+      const ahead = all.find((j) => j.kind === "build" && j.state === "running");
+      say(`Queued: starts automatically when "${ahead ? ahead.title.replace("Build scenario: ", "") : "the current build"}" finishes.`);
+      timer = setTimeout(poll, 4000); return;
+    }
+    if (st && st.state === "running") { say(`Building "${st.title.replace("Build scenario: ", "")}": downloading data and deriving the reservoir and breach…`); timer = setTimeout(poll, 3000); return; }
+    $("build").disabled = false;
+    const m = txt.match(/\[builder\] done (\{.*\})/);
+    if (st && st.state === "finished" && m) {
+      const s = JSON.parse(m[1]);
+      say(`Scenario ready: reservoir ${Hydro.fmt(s.reservoir_Mm3, 2)} Mm³, breach ${Hydro.fmt(s.breach_bottom_m, 0)}–${Hydro.fmt(s.breach_top_m, 0)} m wide, domain ${Hydro.fmt(s.domain_km2, 1)} km².`, "ok");
+      $("after").hidden = false;
+      $("after").innerHTML = `<button class="btn primary" type="button" data-run="delft3d">Run Delft3D</button><button class="btn" type="button" data-run="sph">Run SPH</button><a class="btn" href="/run/${s.scenario}/">Open scenario</a>`;
+      $("after").querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", async () => {
+        b.disabled = true;
+        const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenario: s.scenario, model: b.dataset.run }) });
+        const j = await r.json();
+        if (!r.ok) { say(j.error, "err"); b.disabled = false; } else say(`${b.dataset.run === "sph" ? "SPH" : "Delft3D"} started. Follow its progress on the Scenarios page.`, "ok");
+      }));
+    } else {
+      const reason = (txt.match(/(?:ValueError|FileNotFoundError|RuntimeError): (.*)/g) || []).pop();
+      say(reason ? reason.replace(/^\w+Error: /, "") : "The build stopped with an error; the log above shows why.", "err");
+    }
+  }
+})();
+</script>

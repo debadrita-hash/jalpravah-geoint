@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/hydro.css">
 <script src="/hydro.js"></script>
+<script src="/jp-remote.js" defer></script>
 <style>
   .sc-card { display: grid; gap: 10px; align-content: start; padding: 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; }
   .sc-card h2 a { color: var(--ink); text-decoration: none; }
@@ -41,7 +42,6 @@
   .actions .spacer { flex: 1; }
   .jobbtns { display: flex; gap: 6px; }
 </style>
-<style>[data-run],[data-del],.confirm,section.panel:has(#jobs){display:none!important}</style>
 
 <header class="appbar">
   <a class="brand" href="/" title="All scenarios"><img src="/logo.png" alt="JalPravah" width="92" height="62"></a>
@@ -51,9 +51,6 @@
     <a href="/satellite">Satellite flood mapping</a>
   </nav>
 </header>
-<div class="wrap" style="padding-bottom:0"><p class="note" style="background:var(--surface-2);border:1px solid var(--rule);border-radius:6px;padding:10px 14px;max-width:none">
-Hosted results viewer. These are the finished runs of both solvers; new scenarios, simulations and satellite analyses run on the JalPravah workstation
-(<b>python jalpravah.py</b>, Docker with DualSPHysics and Delft3D-FLOW).</p></div>
 
 <div class="wrap">
   <div class="pagehead">

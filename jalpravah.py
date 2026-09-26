@@ -17,6 +17,8 @@ API
 """
 import argparse
 import datetime as dt
+import hashlib
+import hmac
 import http.server
 import json
 import mimetypes
@@ -36,6 +38,7 @@ HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "hydrosim" / "viewer_assets"
 JOBS_DIR = RUNS_ROOT / "_jobs"
 SAT_DIR = RUNS_ROOT / "_satellite"
+REMOTE_FILE = HERE / ".jalpravah_remote.json"  # written by jalpravah_online.py; never committed
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("application/geo+json", ".geojson")
 mimetypes.add_type("application/vnd.google-earth.kml+xml", ".kml")
@@ -71,6 +74,17 @@ def _bbox(sc, meta):
     from hydrosim.exposure import corridor_bbox_wgs84
     s, w, n, e = corridor_bbox_wgs84(meta)
     return [w, s, e, n]
+
+
+def remote_key():
+    try:
+        return json.loads(REMOTE_FILE.read_text()).get("key", "")
+    except Exception:
+        return ""
+
+
+def download_token(key, path):
+    return hmac.new(key.encode(), path.encode(), hashlib.sha256).hexdigest()[:32]
 
 
 def zip_shapefile(shp):
@@ -277,8 +291,25 @@ def make_handler(status, jobs):
             n = int(self.headers.get("Content-Length") or 0)
             return json.loads(self.rfile.read(n) or b"{}")
 
+        def _remote_ok(self):
+            """Requests from this computer are always served. Requests that arrive through the Cloudflare tunnel
+            (JalPravah Online) must carry the shared key from the Vercel site, or a signed download token."""
+            if "Cf-Connecting-Ip" not in self.headers and "Cf-Ray" not in self.headers:
+                return True
+            key = remote_key()
+            if key and hmac.compare_digest(self.headers.get("X-JalPravah-Key", ""), key):
+                return True
+            u = urllib.parse.urlparse(self.path)
+            tok = urllib.parse.parse_qs(u.query).get("jpdl", [""])[0]
+            if key and self.command == "GET" and tok and hmac.compare_digest(tok, download_token(key, urllib.parse.unquote(u.path))):
+                return True
+            self.send_error(403, "Forbidden")
+            return False
+
         # ------------------------------------------------------------ GET
         def do_GET(self):
+            if not self._remote_ok():
+                return
             u = urllib.parse.urlparse(self.path)
             path, qs = urllib.parse.unquote(u.path), urllib.parse.parse_qs(u.query)
             page = {"/": "home.html", "/index.html": "home.html", "/builder": "builder.html", "/satellite": "satellite.html"}.get(path)
@@ -385,6 +416,8 @@ def make_handler(status, jobs):
 
         # ------------------------------------------------------------ POST
         def do_POST(self):
+            if not self._remote_ok():
+                return
             path = urllib.parse.urlparse(self.path).path
             try:
                 body = self._body()

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/hydro.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="/hydro.js"></script>
+<script src="/jp-remote.js" defer></script>
 <style>
   .layout { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 20px; align-items: start; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
@@ -50,9 +51,143 @@
 </header>
 
 <div class="wrap">
-  <div class="pagehead"><div><span class="eyebrow">Near-real-time analysis · Google Earth Engine · open Sentinel-1 radar</span><h1>Satellite flood mapping</h1><p class="lede">Flood mapping compares Sentinel-1 VV radar before and after an event on Google Earth Engine
-(ΔVV ≤ −3 dB, VV &lt; −15 dB, slope &lt; 5°, permanent water from JRC masked). It signs in with your own
-Google account and Earth Engine Cloud project, which is kept on the JalPravah workstation, so it runs there.</p>
-<p class="lede">On the workstation: <b>python jalpravah.py</b>, then open <b>Satellite flood mapping</b>.</p></div></div>
-  <p><a class="btn primary" href="/" style="font:600 13px var(--font-head);padding:8px 14px;border-radius:4px;background:var(--d3d);color:#fff;text-decoration:none;display:inline-block">Open the finished scenarios</a></p>
+  <div class="pagehead">
+    <div>
+      <span class="eyebrow">Near-real-time analysis · Google Earth Engine · open Sentinel-1 radar</span>
+      <h1>Satellite flood mapping</h1>
+      <p class="lede">Maps the water actually on the ground by comparing Sentinel-1 radar images from before and after an event. Radar sees through cloud, so it works during the monsoon. Compare the result with the modelled flood extent.</p>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="side">
+      <fieldset>
+        <legend>1 · Earth Engine connection</legend>
+        <div class="conn" id="conn">Checking…</div>
+      </fieldset>
+      <fieldset>
+        <legend>2 · Area</legend>
+        <label for="scsel">Use a scenario's valley<select id="scsel"><option value="">Draw on the map instead</option></select></label>
+        <p class="note" id="areanote">Click two opposite corners on the map to draw the area.</p>
+      </fieldset>
+      <fieldset>
+        <legend>3 · Dates</legend>
+        <div class="row2">
+          <label for="b0">Before: from<input id="b0" type="date"></label>
+          <label for="b1">Before: to<input id="b1" type="date"></label>
+        </div>
+        <div class="row2">
+          <label for="a0">After: from<input id="a0" type="date"></label>
+          <label for="a1">After: to<input id="a1" type="date"></label>
+        </div>
+        <div class="row2">
+          <label for="orbit">Orbit<select id="orbit"><option value="DESCENDING">Descending</option><option value="ASCENDING">Ascending</option></select></label>
+          <label for="thr">Backscatter drop, dB<input id="thr" type="number" min="1" max="6" step="0.5" value="3"></label>
+        </div>
+        <button class="btn primary" type="button" id="run" disabled>Map the flood</button>
+        <p class="msg" id="msg" role="status"></p>
+      </fieldset>
+      <fieldset>
+        <legend>Results</legend>
+        <div id="result"><p class="note">Run an analysis or open a previous one.</p></div>
+        <div class="runs" id="runs"></div>
+      </fieldset>
+    </div>
+    <div>
+      <div id="map" role="application" aria-label="Map of the analysis area"></div>
+      <div class="overlays" id="overlays" style="margin-top:8px"></div>
+    </div>
+  </div>
 </div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id), fmt = Hydro.fmt;
+  const map = L.map("map").setView([29.5, 80.0], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap contributors" }).addTo(map);
+  const post = async (u, b) => { const r = await fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j; };
+  const say = (t, c) => { $("msg").textContent = t; $("msg").className = "msg " + (c || ""); };
+  // default windows: 30 days before and the last 7 days
+  const d = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  $("b0").value = d(45); $("b1").value = d(15); $("a0").value = d(7); $("a1").value = d(0);
+
+  let ready = false, bbox = null, rect = null, corner = null, flood = null, overlays = {};
+  async function conn() {
+    const s = await (await fetch("/api/gee/status")).json();
+    ready = !!s.ready;
+    if (s.ready) $("conn").innerHTML = `<span><span class="dot" style="background:var(--ok)"></span>Connected · project <b>${s.project}</b></span>`;
+    else if (s.step === "authenticate") $("conn").innerHTML = `<span><span class="dot" style="background:var(--warn)"></span>${s.message}</span>
+      <button class="btn" id="auth" type="button">Sign in with Google</button><span class="note">Your Google account needs Earth Engine access (free for research and non-profit use at earthengine.google.com).</span>`;
+    else if (s.step === "project") $("conn").innerHTML = `<span><span class="dot" style="background:var(--warn)"></span>${s.message}</span>
+      <label for="proj">Google Cloud project ID<input id="proj" placeholder="my-ee-project"></label><button class="btn" id="saveproj" type="button">Connect</button>`;
+    else $("conn").innerHTML = `<span><span class="dot" style="background:var(--bad)"></span>${s.message}</span>`;
+    const a = $("auth"); if (a) a.onclick = async () => { const r = await post("/api/gee/auth"); $("conn").insertAdjacentHTML("beforeend", `<span class="note">${r.message}</span><button class="btn" type="button" id="recheck">I have signed in</button>`); $("recheck").onclick = conn; };
+    const sp = $("saveproj"); if (sp) sp.onclick = async () => { await post("/api/gee/project", { project: $("proj").value }); conn(); };
+    $("run").disabled = !(ready && bbox);
+  }
+  function setBox(b) {
+    bbox = b; if (rect) rect.remove();
+    rect = L.rectangle([[b[1], b[0]], [b[3], b[2]]], { color: "#11707c", weight: 2, fill: false, dashArray: "6 4" }).addTo(map);
+    map.fitBounds(rect.getBounds(), { padding: [20, 20] });
+    $("areanote").textContent = `Area ${b.map((v) => v.toFixed(3)).join(", ")} (${fmt((b[2] - b[0]) * 111 * Math.cos((b[1] + b[3]) / 2 * Math.PI / 180), 0)} × ${fmt((b[3] - b[1]) * 111, 0)} km)`;
+    $("run").disabled = !(ready && bbox);
+  }
+  map.on("click", (e) => {
+    if ($("scsel").value) return;
+    if (!corner) { corner = e.latlng; $("areanote").textContent = "Now click the opposite corner."; return; }
+    const b = [Math.min(corner.lng, e.latlng.lng), Math.min(corner.lat, e.latlng.lat), Math.max(corner.lng, e.latlng.lng), Math.max(corner.lat, e.latlng.lat)];
+    corner = null; setBox(b);
+  });
+  let scen = [];
+  async function loadScenarios() {
+    scen = await (await fetch("/api/scenarios")).json();
+    $("scsel").innerHTML = `<option value="">Draw on the map instead</option>` + scen.filter((s) => s.bbox).map((s) => `<option value="${s.name}">${s.title}</option>`).join("");
+  }
+  $("scsel").addEventListener("change", async () => {
+    Object.values(overlays).forEach((l) => l.remove()); overlays = {}; $("overlays").innerHTML = "";
+    const s = scen.find((x) => x.name === $("scsel").value); if (!s) return;
+    setBox(s.bbox);
+    for (const [m, url] of Object.entries(s.extents || {})) {
+      const gj = await (await fetch(url)).json();
+      overlays[m] = L.geoJSON(gj, { style: { color: m === "sph" ? "#b4532a" : "#11707c", weight: 1, fillOpacity: 0.25 } });
+      $("overlays").insertAdjacentHTML("beforeend", `<label><input type="checkbox" data-ov="${m}"> ${m === "sph" ? "SPH" : "Delft3D"} modelled flood extent</label>`);
+    }
+    $("overlays").querySelectorAll("[data-ov]").forEach((c) => c.addEventListener("change", () => { const l = overlays[c.dataset.ov]; c.checked ? l.addTo(map) : l.remove(); }));
+  });
+
+  function show(run) {
+    if (flood) flood.remove();
+    fetch(`/satellite-files/${run.id}/flood_extent.geojson`).then((r) => r.json()).then((gj) => {
+      flood = L.geoJSON(gj, { style: { color: "#1d5aa6", weight: 1, fillColor: "#3c96c8", fillOpacity: 0.55 } }).addTo(map);
+      if (!rect) setBox(run.aoi);
+    });
+    $("result").innerHTML = `<div class="stats"><div><b>${fmt(run.flooded_area_km2, 2)} km²</b><span>flooded (new water)</span></div><div><b>${fmt(run.polygons, 0)}</b><span>flood patches</span></div>
+      <div><b>${run.scenes_before}</b><span>scenes before (${run.dates_before.slice(0, 1).concat(run.dates_before.slice(-1)).join(" – ")})</span></div><div><b>${run.scenes_after}</b><span>scenes after (${run.dates_after.slice(0, 1).concat(run.dates_after.slice(-1)).join(" – ")})</span></div></div>
+      <p class="note">${run.method}; ${run.orbit.toLowerCase()} orbit, drop ≥ ${run.threshold_db} dB.</p>
+      <div class="dl"><a class="btn" href="/satellite-files/${run.id}/flood_extent.geojson" download>GeoJSON</a><a class="btn" href="/satellite-files/${run.id}/flood_extent.kml">KML</a><a class="btn" href="/satellite-files/${run.id}/flood_extent.shp.zip">Shapefile (zip)</a></div>`;
+  }
+  async function loadRuns() {
+    const runs = await (await fetch("/api/gee/runs")).json();
+    $("runs").innerHTML = runs.map((r, i) => `<div class="runitem"><span>${r.label || r.id}<br><span class="muted">${r.post_window.join(" → ")} · ${fmt(r.flooded_area_km2, 2)} km²</span></span><button type="button" data-i="${i}">Show</button></div>`).join("");
+    $("runs").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => show(runs[+b.dataset.i])));
+    return runs;
+  }
+  $("run").addEventListener("click", async () => {
+    $("run").disabled = true; say("Running on Earth Engine… this takes one to a few minutes.");
+    try {
+      const j = await post("/api/gee/run", { bbox, pre: [$("b0").value, $("b1").value], post: [$("a0").value, $("a1").value],
+        orbit: $("orbit").value, threshold_db: +$("thr").value, label: ($("scsel").selectedOptions[0] && $("scsel").value) ? $("scsel").selectedOptions[0].textContent : "Custom area" });
+      const poll = async () => {
+        const st = (await (await fetch("/api/jobs")).json()).find((x) => x.id === j.id);
+        if (st && st.state === "running") return setTimeout(poll, 4000);
+        const log = await (await fetch(`/api/jobs/${j.id}/log`)).text();
+        if (st && st.state === "finished") { say("Done.", "ok"); const runs = await loadRuns(); if (runs[0]) show(runs[0]); }
+        else say((log.trim().split("\n").filter((l) => l.includes("Error") || l.includes("RuntimeError")).pop() || "The analysis failed; see the job log on the Scenarios page."), "err");
+        $("run").disabled = !(ready && bbox);
+      };
+      poll();
+    } catch (e) { say(e.message, "err"); $("run").disabled = !(ready && bbox); }
+  });
+  conn(); loadScenarios(); loadRuns();
+})();
+</script>

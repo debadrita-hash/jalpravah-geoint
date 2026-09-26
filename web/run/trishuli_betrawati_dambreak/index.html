@@ -131,7 +131,7 @@
         const tot = fl.reduce((a, x) => a + x.bytes, 0);
         return `<details class="group"><summary><b>${t}</b><em>${fl.length} files · ${size(tot)}</em></summary><div class="flist">${fl.map((x) => `<a href="files/${x.path}" title="${x.description}"><span>${x.path}</span><em>${size(x.bytes)}</em></a>`).join("")}</div></details>`;
       }).join("");
-      $("files-note").textContent = `${man.files.length} files, ${fmt(man.total_gb * 1000, 1)} MB, in ${man.root}`;
+      $("files-note").textContent = `${man.files.length} files, ${fmt(man.total_gb, 1)} GB, in ${man.root}`;
     } catch (e) { /* manifest optional */ }
   } else {
     $("files").innerHTML = `<p class="note">Start JalPravah with <b>JalPravah.bat</b> to browse and download the saved files here.</p>`;

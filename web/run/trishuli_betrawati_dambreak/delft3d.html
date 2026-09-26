@@ -231,7 +231,7 @@
   const base = `files/results/${MODEL}/`;
   const files = [["Maximum depth (GeoTIFF)", `gis/${MODEL}_hmax.tif`], ["Maximum velocity (GeoTIFF)", `gis/${MODEL}_vmax.tif`], ["Arrival time (GeoTIFF)", `gis/${MODEL}_arrival_min.tif`],
     ["Hazard rating (GeoTIFF)", `gis/${MODEL}_hazard_rating.tif`], ["Flood extent (shapefile, zip)", `gis/${MODEL}_flood_extent.shp.zip`], ["Hazard zones (shapefile, zip)", `gis/${MODEL}_hazard.shp.zip`], ["Flood extent (KML)", `gis/${MODEL}_flood_extent.kml`],
-    ["Hazard zones (KML)", `gis/${MODEL}_hazard.kml`], ["Metrics (JSON)", "metrics.json"]];
+    ["Hazard zones (KML)", `gis/${MODEL}_hazard.kml`], ["All depth/velocity frames (NumPy)", "frames.npz"], ["Metrics (JSON)", "metrics.json"]];
   const served = location.protocol.startsWith("http");
   $("files").innerHTML = files.map(([l, f]) => served ? `<a href="${base}${f}">${l}</a>` : `<span>${l}: ${M.gis_dir.replace(/\\gis$/, "")}\\${f.replace("/", "\\")}</span>`).join("");
 

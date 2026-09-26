@@ -1,21 +1,37 @@
 {
-  "cleanUrls": true,
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
-    {
-      "source": "/api/scenarios",
-      "destination": "/api/scenarios.json"
-    },
-    {
-      "source": "/api/jobs",
-      "destination": "/api/jobs.json"
-    },
     {
       "source": "/favicon.ico",
       "destination": "/logo.png"
     },
     {
-      "source": "/run/:s/api/:f",
-      "destination": "/run/:s/api/:f.json"
+      "source": "/builder",
+      "destination": "/builder.html"
+    },
+    {
+      "source": "/satellite",
+      "destination": "/satellite.html"
+    },
+    {
+      "source": "/run/([^/]+)/",
+      "destination": "/api/proxy?__p=/run/$1/"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/proxy?__p=/api/:path*"
+    },
+    {
+      "source": "/run/:path*",
+      "destination": "/api/proxy?__p=/run/:path*"
+    },
+    {
+      "source": "/satellite-files/:path*",
+      "destination": "/api/proxy?__p=/satellite-files/:path*"
     }
   ],
   "headers": [

@@ -72,10 +72,16 @@ The SPH solver runs in a container named `hydrosim_sph_solver`; its snapshots st
 * The breach is instantaneous in both models: Delft3D-FLOW 4 has no time-varying crest structure, so a
   gradual breach could not be represented identically in the two engines.
 
-## Hosted results viewer (Vercel)
+## JalPravah on the web (Vercel)
 
-`python export_web.py` writes `web/`: a static, read-only copy of JalPravah with every scenario that has a
-finished model run (2-D and 3-D views, comparison, damage, GeoTIFF / shapefile / KML / GeoJSON downloads).
-It is deployed to Vercel with `web/` as the project root. Building scenarios, running the solvers and
-Earth Engine analyses need Docker and the local server, so they run only on the workstation
-(`python jalpravah.py`, http://localhost:8765/).
+https://jalpravah-geoint.vercel.app is the same app as http://localhost:8765/.
+
+* `python export_web.py` writes `web/`: the app pages, a status / sign-in bar, a Vercel function
+  (`api/proxy.js`) and the finished scenarios as static files.
+* `JalPravah Online.bat` (`python jalpravah_online.py`) connects the site to this workstation: it opens a
+  Cloudflare quick tunnel to the local server, stores the tunnel URL, a shared key and the password in the
+  Vercel project, and redeploys. While that window is open, New scenario, Run / Re-run, Delete and Satellite
+  flood mapping on the website run here, on Docker and your Earth Engine sign-in, exactly as locally.
+* Reading is public; actions need the password (printed by the launcher, kept in `.jalpravah_remote.json`,
+  never committed). The local server answers tunnelled requests only when they carry the shared key.
+* With the window closed the site shows the saved results and says the workstation is offline.

@@ -8,3 +8,4 @@ __pycache__/
 solvers/status.txt
 .vercel/
 .env*
+.jalpravah_remote.json
