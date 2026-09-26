@@ -10,6 +10,10 @@
       "destination": "/api/jobs.json"
     },
     {
+      "source": "/favicon.ico",
+      "destination": "/logo.png"
+    },
+    {
       "source": "/run/:s/api/:f",
       "destination": "/run/:s/api/:f.json"
     }

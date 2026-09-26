@@ -48,9 +48,10 @@ def notice_page(src, here, eyebrow, title, body):
 
 
 def export(out):
-    if out.exists():
-        shutil.rmtree(out)
-    out.mkdir(parents=True)
+    out.mkdir(parents=True, exist_ok=True)
+    for old in out.iterdir():  # keep .vercel, .env.local (the linked Vercel project)
+        if not old.name.startswith("."):
+            shutil.rmtree(old) if old.is_dir() else old.unlink()
     for f in ("hydro.css", "hydro.js", "logo.png"):
         shutil.copy2(ASSETS / f, out / f)
 
@@ -139,6 +140,7 @@ Google account and Earth Engine Cloud project, which is kept on the JalPravah wo
         "rewrites": [
             {"source": "/api/scenarios", "destination": "/api/scenarios.json"},
             {"source": "/api/jobs", "destination": "/api/jobs.json"},
+            {"source": "/favicon.ico", "destination": "/logo.png"},
             {"source": "/run/:s/api/:f", "destination": "/run/:s/api/:f.json"},
         ],
         "headers": [{"source": "/run/(.*)/files/(.*)\\.(tif|zip|kml|json|shp|shx|dbf|prj|cpg)",
